@@ -1,1 +1,1 @@
-web: gunicorn boot --log-file -
+web: gunicorn boot --log-file --preload
