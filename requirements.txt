@@ -26,7 +26,6 @@ lxml==4.2.5
 MarkupSafe==1.0
 matplotlib==3.0.1
 mccabe==0.6.1
-mkl-random==1.0.1
 more-itertools==4.3.0
 numpy==1.15.3
 openpyxl==2.5.9
