@@ -5,3 +5,5 @@ staticfiles
 db.sqlite3
 *.csv
 *.db
+*.xlsx
+!metastock_all_data_real.csv
