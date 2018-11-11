@@ -49,12 +49,12 @@ class Migration():
     def __init__(self):
         
         self.connect_database()
-        try:
-            db.create_all()
-        except Exception as ex:
-            print(ex)
-        finally:
-            self.load_csv()
+        # try:
+        #     db.create_all()
+        # except Exception as ex:
+        #     print(ex)
+        # finally:
+        #     self.load_csv()
         # if not database_exists(postgre_url):
         #     print('NOT EXISTS')
         #     # data = pd.read_csv('%s/%s.csv' %(csv_path, metastock_name), parse_dates=[1], usecols = [0,1,2,3,4,5,6])
@@ -71,7 +71,7 @@ class Migration():
             
 
     def load_csv(self):
-        chunksize = 1
+        chunksize = 50
         try:
             for chunk in pd.read_csv('%s/%s.csv' %(csv_path, metastock_name), chunksize= chunksize, parse_dates=[1], usecols = [0,1,2,3,4,5,6]):
                 chunk.columns= ["Ticker","Date","Open", "High", "Low", "Close", "Volume"]
@@ -112,6 +112,8 @@ class Migration():
                 })
                 #add all the records
                 s.add(record) 
+                if index >= 900:
+                    break
                 print(index)
             s.commit()
             print("nana")
