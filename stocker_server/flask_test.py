@@ -1,7 +1,7 @@
 from flask import jsonify
 from flask import request
 from flask_restful import Resource
-from stocker_server import api
+import api
 import pickle
 from global_configs import configs
 from stocker_logic.stock_model import SModel
