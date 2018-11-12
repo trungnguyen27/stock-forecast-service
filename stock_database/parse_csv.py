@@ -8,30 +8,23 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy_utils import database_exists
 import pandas as pd
 import csv
-from flask_sqlalchemy import SQLAlchemy
-from stocker_server import app
 import os
+from stocker_server.flask_test import app
+from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+
 DB_URL = os.getenv("DATABASE_URL","postgres://pkfjujpoljriaq:7527e2b110024e147f74c8d05d61e6a793a504814adef500bc976c101f1ada94@ec2-54-225-115-234.compute-1.amazonaws.com:5432/d3umils42h7mt5")
 app.config['SQLALCHEMY_DATABASE_URI'] = DB_URL
 
 db = SQLAlchemy(app)
-db_session = db.session()
 migrate = Migrate(app, db)
+
+db_session = db.session()
+
 
 csv_path = configs['csv_path']
 sql_path = configs['sql_path']
 metastock_name = configs['metastock_name']
-
-# class User(db.Model):
-#   id = db.Column(db.Integer, primary_key=True)
-#   name = db.Column(db.String(100))
-#   email = db.Column(db.String(100))
-
-#   def __init__(self, name, email):
-#     self.name = name
-# self.email = email
-
 
 class Price_History(db.Model):
     # __tablename__ = 'Price_History'

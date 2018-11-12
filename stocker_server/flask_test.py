@@ -1,13 +1,16 @@
-from flask import jsonify
-from flask import request
-from flask_restful import Resource
-import api
+from flask import Flask, jsonify, request
+from flask_restful import Resource, Api
 import pickle
 from global_configs import configs
-from stocker_logic.stock_model import SModel
+#from stocker_logic.stock_model import SModel
 from stock_database.financial_data import FinancialData
 from stocker_server.endpoints import endpoints
 import json
+#code which helps initialize our server
+
+app =  Flask(__name__)
+api = Api(app)
+
 
 data_endpoint = endpoints['price_data']
 ma_endpoint = endpoints['moving_average_data']

@@ -1,14 +1,5 @@
-from flask import Flask, jsonify
-from flask import request
-from flask_restful import Resource, Api
-
-#code which helps initialize our server
-
-app =  Flask(__name__)
-api = Api(app)
-
-# from stock_database.parse_csv import Migration
 import os
+from stocker_server.flask_test import app
 
 #migration = Migration()
 port = int(os.environ.get('PORT', 5000))
