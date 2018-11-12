@@ -6,13 +6,12 @@ from pytrends.request import TrendReq
 # matplotlib pyplot for plotting
 import matplotlib.pyplot as plt
 import matplotlib
-from stock_database.financial_data import FinancialData
 from sklearn.preprocessing import MinMaxScaler
 import datetime
 
 class SModel():
 
-    def __init__(self, stock = FinancialData("VIC")):
+    def __init__(self, stock = None):
         stock.describe_stock()
         self.stock = stock
         self.intialize_model_parameters()
@@ -106,6 +105,37 @@ class SModel():
             predictions[key] = result['predicted']
         self.predictions = predictions
         return predictions
+
+    def predict_single_dataset(self, train, days):
+        model = self.build_model()
+        model.fit(train)
+    
+        # Future dataframe with specified number of days to predict
+        predicted = model.make_future_dataframe(periods=days, freq='D')
+        predicted = model.predict(predicted)
+        # Only concerned with future dates
+        future = predicted[predicted['ds'] >= self.stock.max_date.date()]
+    
+        # Remove the weekends
+        #future = self.remove_weekends(future)
+
+        future = future.dropna()
+        
+        # Calculate whether increase or not
+        predicted['diff'] = predicted['yhat'].diff()
+        future['diff'] = future['yhat'].diff()
+    
+        predicted = predicted.dropna()
+
+        # Find the prediction direction and create separate dataframes
+        future['direction'] = (future['diff'] > 0) * 1
+        predicted['direction'] = (predicted['diff']> 0) *1
+        predicted['y'] = predicted['yhat']
+        result = dict()
+        result['predicted'] = predicted 
+        result['future'] = future
+        
+        return result
 
     def retrieve_google_trends(self, search, date_range):
         
@@ -236,37 +266,6 @@ class SModel():
         plt.show()
         self.changepoints = c_data
         return c_data
-
-    def predict_single_dataset(self, train, days):
-        model = self.build_model()
-        model.fit(train)
-    
-        # Future dataframe with specified number of days to predict
-        predicted = model.make_future_dataframe(periods=days, freq='D')
-        predicted = model.predict(predicted)
-        # Only concerned with future dates
-        future = predicted[predicted['ds'] >= self.stock.max_date.date()]
-    
-        # Remove the weekends
-        #future = self.remove_weekends(future)
-
-        future = future.dropna()
-        
-        # Calculate whether increase or not
-        predicted['diff'] = predicted['yhat'].diff()
-        future['diff'] = future['yhat'].diff()
-    
-        predicted = predicted.dropna()
-
-        # Find the prediction direction and create separate dataframes
-        future['direction'] = (future['diff'] > 0) * 1
-        predicted['direction'] = (predicted['diff']> 0) *1
-        predicted['y'] = predicted['yhat']
-        result = dict()
-        result['predicted'] = predicted 
-        result['future'] = future
-        
-        return result
 
     def get_trained_model(self, train):
         model = self.build_model()

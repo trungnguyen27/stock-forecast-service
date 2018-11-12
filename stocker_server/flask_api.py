@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request
 from flask_restful import Resource, Api
 import pickle
 from global_configs import configs
-#from stocker_logic.stock_model import SModel
+from stocker_logic.stock_model import SModel
 from stock_database.financial_data import FinancialData
 import json
 
@@ -35,6 +35,26 @@ class MovingAverage(Resource):
         for (key, result) in results.items():
             json[key]=result.to_dict('records')
         return  jsonify(json)
+
+class Prediction(Resource):
+    def get(self, ticker):
+        start_date = request.args.get('start-date')
+        lags = request.args.get('lags')
+        try:
+            lags =map(int, lags.split('-'))
+        except Exception as ex:
+            print ('No lag input', ex)
+            lags= [1]
+         # Future dataframe with specified number of days to predict
+        stock = FinancialData(ticker)
+        smodel = SModel(stock)
+        training_sets = stock.get_moving_averages(lags = lags, start_date=start_date)
+        predictions = smodel.predict(training_sets=training_sets)
+        json=dict()
+        for (key, result) in predictions.items():
+            trimmed = result[['ds', 'direction', 'y', 'yhat_upper', 'yhat_lower']]
+            json[key]=trimmed.to_dict('records')
+        return  jsonify(json)
         
 # @app.route('/describe', methods=["GET"])
 # def describe():
@@ -47,32 +67,7 @@ class MovingAverage(Resource):
 # #defining a /hello route for only post requests
 # @app.route('/future', methods=['GET'])
 # def index():
-#      # Future dataframe with specified number of days to predict
-#     predicted = model.make_future_dataframe(periods=30, freq='D')
-#     predicted = model.predict(predicted)
-#     # Only concerned with future dates
-#     future = predicted[predicted['ds'] >= stock.max_date.date()]
-
-#     # Remove the weekends
-#     #future = self.remove_weekends(future)
-
-#     future = future.dropna()
     
-#     # Calculate whether increase or not
-#     predicted['diff'] = predicted['yhat'].diff()
-#     future['diff'] = future['yhat'].diff()
-
-#     predicted = predicted.dropna()
-
-#     # Find the prediction direction and create separate dataframes
-#     future['direction'] = (future['diff'] > 0) * 1
-#     predicted['direction'] = (predicted['diff']> 0) *1
-#     predicted['y'] = predicted['yhat']
-#     result = dict()
-#     result['predicted'] = predicted.to_json()
-#     result['future'] = future.to_json()
-    
-#     return predicted[["y", "ds"]].head().to_json()
 
 # # if __name__ == '__main__':
 # #     app.run(debug=True)
