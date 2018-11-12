@@ -10,5 +10,6 @@ configs = {
     "sql_path": "./stock_database/price_history_db_v%d.db" %current_db_version,
     "postgre_path": "localhost/trungnuyen",
     "model_path": "./prediction_model",
-    "metastock_name": "metastock_all_pvc"
+    "metastock_name": "metastock_all_pvc",
+    'postgre_connection_string':'postgres://pkfjujpoljriaq:7527e2b110024e147f74c8d05d61e6a793a504814adef500bc976c101f1ada94@ec2-54-225-115-234.compute-1.amazonaws.com:5432/d3umils42h7mt5' 
 }

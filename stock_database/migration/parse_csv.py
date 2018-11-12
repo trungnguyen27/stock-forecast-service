@@ -9,7 +9,7 @@ from sqlalchemy_utils import database_exists
 import pandas as pd
 import csv
 import os
-from stocker_server.flask_test import app
+from stocker_server.flask_api import app
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
@@ -118,6 +118,7 @@ class Migration():
             print("time elapsed: %ss" %(str(time()-t)))
 
     def get_data(self, ticker = 'VIC'):
+        print('Getting data of %s' %ticker)
         query = self.session.query(Price_History).filter(Price_History.ticker == ticker)
         df = pd.read_sql(query.statement, query.session.bind)
         return df
