@@ -6,20 +6,21 @@ from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 import matplotlib
 from global_configs import configs
-from stock_database.parse_csv import Migration
 
 warnings.filterwarnings('ignore')
 
 csv_path = configs['csv_path']
 metastock_name = configs['metastock_name']
-migration = Migration()
 
 class FinancialData():
     currency = '000VND'
     def __init__(self, ticker = "VIC"):
         #["Ticker","Date","OpenFixed","HighFixed","LowFixed","CloseFixed","Volume","Open","High","Low","Close","VolumeDeal","VolumeFB","VolumeFS"]
+        from stock_database.stock_query import stockquery
+        migration = stockquery()
         self.ticker = ticker.capitalize()
         data = migration.get_data(ticker=ticker)
+        print('Data Collected', data)
         # data = data[(data['Ticker']== ticker)]
         data.columns=["Id", "Ticker","Date","Open", "High", "Low", "Close", "Volume"]
         data['Date']=pd.to_datetime(data.Date)

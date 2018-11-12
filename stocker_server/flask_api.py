@@ -1,20 +1,12 @@
-from flask import jsonify
-from flask import request
-from flask_restful import Resource
-from stocker_server import api
+from flask import Flask, jsonify, request
+from flask_restful import Resource, Api
 import pickle
 from global_configs import configs
-from stocker_logic.stock_model import SModel
+#from stocker_logic.stock_model import SModel
 from stock_database.financial_data import FinancialData
-from stocker_server.endpoints import endpoints
 import json
 
-data_endpoint = endpoints['price_data']
-ma_endpoint = endpoints['moving_average_data']
-
-
 model_path = configs['model_path']
-
 
 model = pickle.load(open("%s/prophet_model_MA_1_Close.pkl" %model_path, "rb"))
 class PriceData(Resource):
@@ -43,10 +35,7 @@ class MovingAverage(Resource):
         for (key, result) in results.items():
             json[key]=result.to_dict('records')
         return  jsonify(json)
-
-api.add_resource(PriceData, '%s/<string:ticker>' %data_endpoint)
-api.add_resource(MovingAverage, '%s/<string:ticker>' %ma_endpoint)
-
+        
 # @app.route('/describe', methods=["GET"])
 # def describe():
 #     result = stock.describe_stock()
