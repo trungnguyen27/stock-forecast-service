@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, request
-from flask_restful import Resource, Api
+from flask_restful import Resource
 import pickle
 from global_configs import configs
 from stocker_logic.stock_model import SModel
@@ -46,16 +46,12 @@ class Prediction(Resource):
             print ('No lag input', ex)
             lags= [1]
          # Future dataframe with specified number of days to predict
-        stock = FinancialData(ticker)
-        smodel = SModel(stock)
-        training_sets = stock.get_moving_averages(lags = lags, start_date=start_date)
-        predictions = smodel.predict(training_sets=training_sets)
-        json=dict()
-        for (key, result) in predictions.items():
-            trimmed = result[['ds', 'direction', 'y', 'yhat_upper', 'yhat_lower']]
-            json[key]=trimmed.to_dict('records')
-        return  jsonify(json)
-        
+        import stocker_server.tasks as tasks
+        predictions = tasks.predict.delay(ticker=ticker, lags=lags, start_date=start_date)
+        result = predictions.wait()
+        print(result)
+        return result
+
 # @app.route('/describe', methods=["GET"])
 # def describe():
 #     result = stock.describe_stock()
