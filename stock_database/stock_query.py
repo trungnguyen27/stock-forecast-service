@@ -7,7 +7,7 @@ metastock_name = configs['metastock_name']
 
 class stockquery():
     def __init__(self):
-        from app import db
+        from application import db
         db_session = db.session()
         self.session = db_session
     def get_data(self, ticker = 'VIC'):

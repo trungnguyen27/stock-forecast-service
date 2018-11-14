@@ -1,7 +1,7 @@
 from stocker_logic.stock_model import SModel
 from stock_database.financial_data import FinancialData
 from stocker_server.celery_init import make_celery
-from app import app
+from application import app
 from flask import jsonify
 
 celery_app = make_celery(app)

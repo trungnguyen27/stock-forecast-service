@@ -1,4 +1,4 @@
-from app import db
+from application import db
 class Price_History(db.Model):
     id = db.Column(db.Integer, primary_key=True, nullable=False )
     ticker = db.Column(db.String(100))
