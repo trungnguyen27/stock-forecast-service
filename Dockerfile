@@ -11,6 +11,14 @@ RUN apt-get -y update  && apt-get install -y \
   postgresql-client \
 && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --upgrade setuptools &&  python3 -m pip install -r requirements.txt
+RUN pip install --upgrade setuptools
+RUN pip install cython
+RUN pip install numpy
+RUN pip install matplotlib
+RUN pip install pystan
+RUN pip install fbprophet
+RUN pip install psycopg2
+RUN pip install sqlalchemy
+RUN python3 -m pip install -r requirements.txt
 
 EXPOSE 80
