@@ -1,25 +1,10 @@
-FROM python:3.4.6-wheezy
+FROM continuumio/miniconda3
 
 COPY . /app
 WORKDIR /app
 
-RUN apt-get -y update  && apt-get install -y \
-  python3-dev \
-  libpng-dev \
-  apt-utils \
-  python-psycopg2 \
-  python-dev \
-  postgresql-client \
-&& rm -rf /var/lib/apt/lists/*
-
-RUN pip install --upgrade setuptools
-RUN pip install cython
-RUN pip install numpy
-RUN pip install matplotlib
-RUN pip install pystan
-RUN pip install fbprophet
-RUN pip install psycopg2
-RUN pip install sqlalchemy
-RUN python3 -m pip install -r requirements.txt
-
-EXPOSE 80
+RUN conda create -n env python=3.6
+RUN echo "source activate env" > ~/.bashrc
+ENV PATH /opt/conda/envs/env/bin:$PATH
+RUN conda install -c conda-forge fbprophet
+RUN conda activate fbprophet && python3 -m pip install -r requirements.txt
