@@ -3,7 +3,7 @@ FROM continuumio/miniconda3
 COPY . /app
 WORKDIR /app
 
-RUN conda install gcc
+RUN apt-get install gcc
 RUN conda install -c conda-forge fbprophet
 ENV PATH /opt/conda/envs/fbprophet/bin:$PATH
 RUN echo "source activate fbprophet" > ~/.bashrc
