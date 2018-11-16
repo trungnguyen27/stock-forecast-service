@@ -1,6 +1,4 @@
-FROM python:3.6.7-jessie
-COPY . /app
-WORKDIR /app
+FROM python:3.4.6-wheezy
 
 RUN apt-get -y update  && apt-get install -y \
   python3-dev \
@@ -20,5 +18,8 @@ RUN pip install fbprophet
 RUN pip install psycopg2
 RUN pip install sqlalchemy
 RUN python3 -m pip install -r requirements.txt
+
+COPY . /app
+WORKDIR /app
 
 EXPOSE 80
