@@ -1,0 +1,13 @@
+.git
+venv
+*.pyc
+staticfiles
+db.sqlite3
+*.csv
+*.db
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+.elasticbeanstalk/*.cfg.yml
+.elasticbeanstalk/*.global.yml
+.ebextensions/*
