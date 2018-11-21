@@ -7,8 +7,10 @@ COPY . /app
 WORKDIR /app
 
 RUN apt-get -y update && apt-get -y install gcc
-RUN conda install --verbose -c conda-forge -y fbprophet
-RUN echo 'finished getting prophet'
+RUN conda update -y conda && conda create --name fbprophet 
 ENV PATH /opt/conda/envs/fbprophet/bin:$PATH
-RUN echo "source activate fbprophet" > ~/.bashrc
-RUN python3 -m pip install -r requirements.txt
+RUN echo "source activate fbprophet" > ~/.bashrc && python3 -m pip install -r requirements.txt
+
+# Run server
+EXPOSE 5000
+CMD gunicorn -b 0.0.0.0:8000 --access-logfile - "application"
