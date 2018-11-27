@@ -13,8 +13,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from stocker_app.application import app
 
-postgreurl = "postgres://stockeruser:stockeruser@stockerdb.csctqutzfgga.us-east-2.rds.amazonaws.com:5432/stockerdatabase"
-DB_URL = os.getenv("DATABASE_URL",postgreurl)
+postgreurl = configs['postgre_connection_string']
+DB_URL = os.getenv("DATABASE_URL", postgreurl)
 app.config['SQLALCHEMY_DATABASE_URI'] = DB_URL
 
 db = SQLAlchemy(app)
