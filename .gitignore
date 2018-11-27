@@ -10,3 +10,4 @@ db.sqlite3
 .elasticbeanstalk/*.cfg.yml
 .elasticbeanstalk/*.global.yml
 .ebextensions/*
+!metastock_all_data_real.csv

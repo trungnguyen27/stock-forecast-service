@@ -58,6 +58,15 @@ class Prediction(Resource):
             print(result)
         return result
 
+class DataMigration(Resource):
+    def get(self):
+        try:
+            import stocker_app.stocker_server.tasks as tasks
+            tasks.migrate_data.delay()
+        except Exception as ex:
+            return 'Error creating worker'
+        return 'DataMigration started'
+
 # @app.route('/describe', methods=["GET"])
 # def describe():
 #     result = stock.describe_stock()

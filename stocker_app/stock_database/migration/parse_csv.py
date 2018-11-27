@@ -1,4 +1,4 @@
-from config.setting import configs
+from stocker_app.config.setting import configs
 from time import time
 from datetime import datetime
 from sqlalchemy import Column, Integer, Float, Date, String
@@ -11,8 +11,10 @@ import csv
 import os
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from stocker_app.stocker_server.flask_api import app
-DB_URL = os.getenv("DATABASE_URL","postgres://pkfjujpoljriaq:7527e2b110024e147f74c8d05d61e6a793a504814adef500bc976c101f1ada94@ec2-54-225-115-234.compute-1.amazonaws.com:5432/d3umils42h7mt5")
+from stocker_app.application import app
+
+postgreurl = "postgres://stockeruser:stockeruser@stockerdb.csctqutzfgga.us-east-2.rds.amazonaws.com:5432/stockerdatabase"
+DB_URL = os.getenv("DATABASE_URL",postgreurl)
 app.config['SQLALCHEMY_DATABASE_URI'] = DB_URL
 
 db = SQLAlchemy(app)
@@ -39,14 +41,15 @@ class Price_History(db.Model):
 
 class Migration():
     def __init__(self):
+        print('Migration object initialized')
+        print('Looking for %s/%s.csv' %(csv_path, metastock_name))
         
-        self.connect_database()
-        # try:
-        #     db.create_all()
-        # except Exception as ex:
-        #     print(ex)
-        # finally:
-        #     self.load_csv()
+        if os.path.isfile('%s/%s.csv' %(csv_path, metastock_name)) == True:
+            print('Found')
+            self.file_found = True
+        else:
+            print('Designated CSV file not found, migration may not be continued')
+            self.file_found= False
         # if not database_exists(postgre_url):
         #     print('NOT EXISTS')
         #     # data = pd.read_csv('%s/%s.csv' %(csv_path, metastock_name), parse_dates=[1], usecols = [0,1,2,3,4,5,6])
@@ -60,15 +63,28 @@ class Migration():
         #     #self.data = data
         #     #self.init_database()
         # else:
+    def migrate(self):
+        if not self.file_found:
+            print('Cannot load CSV, File Not Found')
+            return
+        self.connect_database()
+        try:
+            db.create_all()
+        except Exception as ex:
+            print(ex)
+        finally:
+            self.load_csv()
             
-
     def load_csv(self):
         chunksize = 50
+        index = 0
         try:
             for chunk in pd.read_csv('%s/%s.csv' %(csv_path, metastock_name), chunksize= chunksize, parse_dates=[1], usecols = [0,1,2,3,4,5,6]):
                 chunk.columns= ["Ticker","Date","Open", "High", "Low", "Close", "Volume"]
                 chunk['Date'] = pd.to_datetime(chunk['Date']).apply(lambda x : x.date())
                 self.save_to_database(chunk)
+                index = index + chunksize
+                print('Current Index: %d' %(index))
         except Exception as ex:
             print(ex)
         finally:
@@ -103,18 +119,15 @@ class Migration():
                     'vol':i['Volume']
                 })
                 #add all the records
-                s.add(record) 
-                if index >= 900:
-                    break
-                print(index)
+                s.add(record)
+                print(record)
             s.commit()
-            print("nana")
         except Exception as e:
             s.rollback()
             print(e)
         finally:
             s.close()
-            print("time elapsed: %ss" %(str(time()-t)))
+            print("Time elapsed: %ss" %(str(time()-t)))
 
     def get_data(self, ticker = 'VIC'):
         print('Getting data of %s' %ticker)
