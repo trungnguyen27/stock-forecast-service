@@ -1,0 +1,85 @@
+{
+    "containerDefinitions": [
+        {
+            "command": [
+                "celery",
+                "-A",
+                "stocker_app.stocker_server.tasks.celery_app",
+                "worker",
+                "--loglevel=info"
+            ],
+            "essential": true,
+            "image": "quoctrunguit/stocker",
+            "memory": 5000,
+            "mountPoints": [
+                {
+                    "containerPath": "/stocker_app",
+                    "sourceVolume": "_"
+                }
+            ],
+            "name": "celery"
+        },
+        {
+            "command": [
+                "redis-server",
+                "--requirepass",
+                "devpassword"
+            ],
+            "essential": true,
+            "image": "redis:4.0-alpine",
+            "memory": 500,
+            "mountPoints": [
+                {
+                    "containerPath": "/var/lib/redis/data",
+                    "sourceVolume": "Redis"
+                }
+            ],
+            "name": "redis",
+            "portMappings": [
+                {
+                    "containerPort": 6379,
+                    "hostPort": 6379
+                }
+            ]
+        },
+        {
+            "command": [
+                "gunicorn",
+                "stocker_app.application:app",
+                "-b",
+                "0.0.0.0:8000"
+            ],
+            "essential": true,
+            "image": "quoctrunguit/stocker",
+            "memory": 5000,
+            "mountPoints": [
+                {
+                    "containerPath": "/stocker_app",
+                    "sourceVolume": "_"
+                }
+            ],
+            "name": "stockerapp",
+            "portMappings": [
+                {
+                    "containerPort": 8000,
+                    "hostPort": 8000
+                }
+            ]
+        }
+    ],
+    "family": "",
+    "volumes": [
+        {
+            "host": {
+                "sourcePath": "redis"
+            },
+            "name": "Redis"
+        },
+        {
+            "host": {
+                "sourcePath": "."
+            },
+            "name": "_"
+        }
+    ]
+}

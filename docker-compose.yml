@@ -8,35 +8,39 @@ services:
       - 'redis:/var/lib/redis/data'
     ports:
       - '6379:6379'
+    mem_limit: 500m
 
-  website:
-    image: 'stocker'
-    command: >
-      gunicorn stocker_app.application:app -b 18.191.156.176:80
+  stockerapp:
+    image: 'quoctrunguit/stocker'
+    expose:
+      - "8000"
+    ports:
+      - "8000:8000"
     env_file:
       - '.env'
     volumes:
       - '.:/stocker_app'
-    ports:
-      - '8000:8000'
+    command:  gunicorn stocker_app.application:app -b 0.0.0.0:8000
+    mem_limit: 5000m
 
   celery:
-    image: 'stocker'
+    image: 'quoctrunguit/stocker'
     command: celery -A stocker_app.stocker_server.tasks.celery_app worker --loglevel=info
     env_file:
       - '.env'
     volumes:
       - '.:/stocker_app'
-  
-  nginx:
-    image: webapp-nginx
-    build:
-      context: .
-      dockerfile: Dockerfile-nginx
-    ports:
-      - 5000:80
-    depends_on:
-      - flask
+    mem_limit: 5000m
+
+  # nginx:
+  #   restart: always
+  #   image: 'nginx:1.13.5'
+  #   ports:
+  #     - "80:80"
+  #   links:
+  #     - stockerapp:stockerapp
+  #   volumes:
+  #     - ./conf.d/:/etc/nginx/conf.d/
 
 volumes:
   redis:

@@ -11,4 +11,4 @@ RUN echo "source activate fbprophet" > ~/.bashrc && python3 -m pip install -r re
 
 # Run server
 EXPOSE 8000
-CMD gunicorn stocker_app.application:app
+CMD gunicorn stocker_app.application:app -b 0.0.0.0:8000

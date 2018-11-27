@@ -12,8 +12,8 @@ from stocker_app.config.setting import configs
 app =  Flask(__name__)
 
 app.config.update(
-    CELERY_BROKER_URL='redis://:devpassword@redis:6379/0',
-    CELERY_RESULT_BACKEND='redis://:devpassword@redis:6379/0'
+    CELERY_BROKER_URL='redis://@127.0.0.1:6379/0',
+    CELERY_RESULT_BACKEND='redis://@127.0.0.1:6379/0'
 )
 
 postgre_connection_string=configs['postgre_connection_string']
@@ -29,4 +29,4 @@ migrate = Migrate(app, db)
 
 port = int(os.environ.get('PORT', 5000))
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=port) 
+    app.run(host='0.0.0.0', debug=True) 

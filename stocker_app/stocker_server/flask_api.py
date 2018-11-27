@@ -9,6 +9,11 @@ from stocker_app.stock_database.financial_data import FinancialData
 model_path = configs['model_path']
 
 model = pickle.load(open("%s/prophet_model_MA_1_Close.pkl" %model_path, "rb"))
+
+class Hello(Resource):
+    def get(self):
+        return 'hello'
+
 class PriceData(Resource):
     def get(self, ticker):
         start_date = request.args.get('start-date')
