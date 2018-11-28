@@ -3,7 +3,7 @@ version: '2'
 services:
   redis:
     image: 'redis:4.0-alpine'
-    command: redis-server --requirepass devpassword
+    command: redis-server
     volumes:
       - 'redis:/var/lib/redis/data'
     ports:
@@ -11,7 +11,7 @@ services:
     mem_limit: 500m
 
   stockerapp:
-    image: 'quoctrunguit/stocker'
+    image: 'stocker'
     expose:
       - "8000"
     ports:
@@ -24,7 +24,7 @@ services:
     mem_limit: 5000m
 
   celery:
-    image: 'quoctrunguit/stocker'
+    image: 'stocker'
     command: celery -A stocker_app.stocker_server.tasks.celery_app worker --loglevel=info
     env_file:
       - '.env'
