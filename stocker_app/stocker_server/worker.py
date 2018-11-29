@@ -3,9 +3,11 @@ import os
 import redis
 from rq import Worker, Queue, Connection
 
+from stocker_app.config.setting import configs
+
 listen = ['high', 'default', 'low']
 
-redis_url = 'redis://@redis:6379/0'
+redis_url = configs['redis']
 
 conn = redis.from_url(redis_url)
 

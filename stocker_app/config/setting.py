@@ -10,5 +10,6 @@ configs = {
     "postgre_path": "localhost/trungnuyen",
     "model_path": "./stocker_app/prediction_model",
     "metastock_name": "metastock_all_data_real",
-    'postgre_connection_string':'postgres://stockeruser:stockeruser@stockerdb.csctqutzfgga.us-east-2.rds.amazonaws.com:5432/stockerdatabase' 
+    'postgre_connection_string':'postgres://stockeruser:stockeruser@stockerdb.csctqutzfgga.us-east-2.rds.amazonaws.com:5432/stockerdatabase', 
+    'redis': 'redis://localhost:6379'
 }

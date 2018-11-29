@@ -21,7 +21,7 @@ services:
     volumes:
       - '.:/stocker_app'
     command:  gunicorn stocker_app.application:app -b 0.0.0.0:8000
-    mem_limit: 5000m
+    mem_limit: 5000mg
 
   celery:
     image: 'stocker'

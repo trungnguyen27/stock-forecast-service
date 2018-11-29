@@ -5,6 +5,7 @@ import json
 from stocker_app.config.setting import configs
 from stocker_app.stocker_logic.stock_model import SModel
 from stocker_app.stock_database.financial_data import FinancialData
+from stocker_app.stocker_server import tasks as tasks
 
 model_path = configs['model_path']
 
@@ -61,10 +62,9 @@ class Prediction(Resource):
 class DataMigration(Resource):
     def get(self):
         try:
-            import stocker_app.stocker_server.tasks as tasks
-            tasks.migrate_data.delay()
+            process = tasks.migrate_data.delay()
         except Exception as ex:
-            return 'Error creating worker'
+            return ex     
         return 'DataMigration started'
 
 # @app.route('/describe', methods=["GET"])

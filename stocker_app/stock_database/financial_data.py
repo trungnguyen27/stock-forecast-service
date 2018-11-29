@@ -20,13 +20,17 @@ class FinancialData():
         migration = stockquery()
         self.ticker = ticker.capitalize()
         data = migration.get_data(ticker=ticker)
-        print('Data Collected', data)
+        if data.empty() == True:
+            return None
         # data = data[(data['Ticker']== ticker)]
         data.columns=["Id", "Ticker","Date","Open", "High", "Low", "Close", "Volume"]
         data['Date']=pd.to_datetime(data.Date)
         #data.Timestamp= data['']
         data.index = data['Date']
         data = data.sort_values(by=['Date'], ascending=[True])
+        #remove duplicates
+        data = data.remove_duplicates(subset=['Ticker', 'Date'])
+
         data = data.resample('D').fillna(method='ffill')
 
         data['ds']=data.index

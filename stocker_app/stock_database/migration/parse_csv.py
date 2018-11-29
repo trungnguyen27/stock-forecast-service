@@ -1,79 +1,40 @@
-from stocker_app.config.setting import configs
+import pandas as pd
+import csv, os
 from time import time
 from datetime import datetime
-from sqlalchemy import Column, Integer, Float, Date, String
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy_utils import database_exists
-import pandas as pd
-import csv
-import os
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from stocker_app.application import app
-
-postgreurl = configs['postgre_connection_string']
-DB_URL = os.getenv("DATABASE_URL", postgreurl)
-app.config['SQLALCHEMY_DATABASE_URI'] = DB_URL
-
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-
-db_session = db.session()
+from stocker_app.config.setting import configs
 
 
 csv_path = configs['csv_path']
 sql_path = configs['sql_path']
 metastock_name = configs['metastock_name']
 
-class Price_History(db.Model):
-    # __tablename__ = 'Price_History'
-    # __table_args__ = {'sqlite_autoincrement':True}
-    id = db.Column(db.Integer, primary_key=True, nullable=False )
-    ticker = db.Column(db.String(100))
-    date = db.Column(db.Date)
-    opn = db.Column(db.Float)
-    hi = db.Column(db.Float)
-    lo = db.Column(db.Float)
-    close = db.Column(db.Float)
-    vol = db.Column(db.Float)
-
 class Migration():
     def __init__(self):
-        print('Migration object initialized')
         print('Looking for %s/%s.csv' %(csv_path, metastock_name))
-        
         if os.path.isfile('%s/%s.csv' %(csv_path, metastock_name)) == True:
             print('Found')
             self.file_found = True
         else:
             print('Designated CSV file not found, migration may not be continued')
-            self.file_found= False
-        # if not database_exists(postgre_url):
-        #     print('NOT EXISTS')
-        #     # data = pd.read_csv('%s/%s.csv' %(csv_path, metastock_name), parse_dates=[1], usecols = [0,1,2,3,4,5,6])
-        #     # #data=data[data.columns[:7]]
-        #     # print(data.describe())
-        #     # data.columns= ["Ticker","Date","Open", "High", "Low", "Close", "Volume"]
-        #     # data['Date'] = pd.to_datetime(data['Date']).apply(lambda x : x.date())
-        #     # print('dataframe loaded')
-        #     self.connect_database()
-        #     self.load_csv()
-        #     #self.data = data
-        #     #self.init_database()
-        # else:
+            self.file_found = False
+        try:
+            from stocker_app.stock_database.schemas import database
+            self.session = database.get_session()
+            database.create_tables()
+        except Exception as ex:
+            print(ex)
+        finally:
+            print('Migration object initialized')
+
     def migrate(self):
         if not self.file_found:
             print('Cannot load CSV, File Not Found')
             return
-        self.connect_database()
-        try:
-            db.create_all()
-        except Exception as ex:
-            print(ex)
-        finally:
-            self.load_csv()
+        # self.connect_database()
+        self.load_csv()
             
     def load_csv(self):
         chunksize = 50
@@ -86,27 +47,22 @@ class Migration():
                 index = index + chunksize
                 print('Current Index: %d' %(index))
         except Exception as ex:
-            print(ex)
+            print('[Exception]- load_csv:', ex)
         finally:
             print('done reading csv')
 
-    def connect_database(self):
-        
-         # create the database
-        # print('Connecting to database')
-        # engine = create_engine(postgre_url)
-        # Base.metadata.create_all(engine)
-
-        # #create a session
-        # session = sessionmaker()
-        # session.configure(bind = engine)
-        # # s = session()
-        # self.egnine = engine
-        self.session = db_session
+    # def connect_database(self):
+    #     try:
+    #         self.database.create_tables()
+    #     except Exception as ex:
+    #         print(ex)
+    #     finally:
+    #         print('Connected to PostgreSQL')
 
     def save_to_database(self, data):
         t = time()
         s = self.session
+        from stocker_app.stock_database.schemas import Price_History
         try:
             for (index, i) in data.iterrows():
                 record = Price_History(**{
@@ -120,17 +76,18 @@ class Migration():
                 })
                 #add all the records
                 s.add(record)
-                print(record)
             s.commit()
+            print('Committed', data.head())
         except Exception as e:
             s.rollback()
-            print(e)
+            print('[Exception|save_to_database]', e)
         finally:
             s.close()
             print("Time elapsed: %ss" %(str(time()-t)))
 
     def get_data(self, ticker = 'VIC'):
         print('Getting data of %s' %ticker)
+        from stocker_app.stock_database.schemas import Price_History
         query = self.session.query(Price_History).filter(Price_History.ticker == ticker)
         df = pd.read_sql(query.statement, query.session.bind)
         return df

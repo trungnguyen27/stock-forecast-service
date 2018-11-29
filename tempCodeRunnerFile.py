@@ -1,1 +1,1 @@
-celery_app
+m.get_data(ticker='000001.SS')
