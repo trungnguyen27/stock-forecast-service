@@ -11,4 +11,4 @@ def initialize_endpoints(api):
     api.add_resource(Prediction, '%s/<string:ticker>' %prediction_endpoint)
 
     api.add_resource(Hello, '/')
-    api.add_resource(DataMigration, '/migrate')
+    api.add_resource(DataMigration, '/migrate/<int:start>')

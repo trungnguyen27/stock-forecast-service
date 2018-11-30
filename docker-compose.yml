@@ -11,7 +11,7 @@ services:
     mem_limit: 500m
 
   stockerapp:
-    image: 'stocker'
+    image: 'quoctrunguit/stocker'
     expose:
       - "8000"
     ports:
@@ -21,26 +21,16 @@ services:
     volumes:
       - '.:/stocker_app'
     command:  gunicorn stocker_app.application:app -b 0.0.0.0:8000
-    mem_limit: 5000mg
+    mem_limit: 5000m
 
   celery:
-    image: 'stocker'
+    image: 'quoctrunguit/stocker'
     command: celery -A stocker_app.stocker_server.tasks.celery_app worker --loglevel=info
     env_file:
       - '.env'
     volumes:
       - '.:/stocker_app'
     mem_limit: 5000m
-
-  # nginx:
-  #   restart: always
-  #   image: 'nginx:1.13.5'
-  #   ports:
-  #     - "80:80"
-  #   links:
-  #     - stockerapp:stockerapp
-  #   volumes:
-  #     - ./conf.d/:/etc/nginx/conf.d/
 
 volumes:
   redis:

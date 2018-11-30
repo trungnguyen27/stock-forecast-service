@@ -20,8 +20,9 @@ class FinancialData():
         migration = stockquery()
         self.ticker = ticker.capitalize()
         data = migration.get_data(ticker=ticker)
-        if data.empty() == True:
-            return None
+        if data.empty == True:
+            self.data = pd.DataFrame()
+            return
         # data = data[(data['Ticker']== ticker)]
         data.columns=["Id", "Ticker","Date","Open", "High", "Low", "Close", "Volume"]
         data['Date']=pd.to_datetime(data.Date)
@@ -29,7 +30,7 @@ class FinancialData():
         data.index = data['Date']
         data = data.sort_values(by=['Date'], ascending=[True])
         #remove duplicates
-        data = data.remove_duplicates(subset=['Ticker', 'Date'])
+        data = data.drop_duplicates(subset=['Ticker', 'Date'])
 
         data = data.resample('D').fillna(method='ffill')
 
@@ -65,7 +66,7 @@ class FinancialData():
     def get_data(self, start_date):
         if self.data.empty:
             print ('Stock data is empty')
-            return
+            return pd.DataFrame()
         else:
             print('Stock History Data of %s' %(self.ticker))
             if not start_date:

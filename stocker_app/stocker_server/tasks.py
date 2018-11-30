@@ -20,12 +20,14 @@ def predict(ticker, lags, start_date):
     return json
 
 @celery_app.task
-def migrate_data():
+def migrate_data(start):
     print('LOGS: migrate_data')
     migration = Migration()
+    migration.set_setting(key='migration', value=start)
     try:
-        migration.migrate()
-        return 'chunk'
+        inprogress = migration.migrate() == False
+        if inprogress:
+            return migration.get_current_migration_progress()
     except Exception as ex:
         print(ex)
     finally:

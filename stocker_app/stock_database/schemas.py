@@ -20,3 +20,7 @@ class Price_History(db.Model):
     close = db.Column(db.Float)
     vol = db.Column(db.Float)
     
+class App_Setting(db.Model):
+    __table_name__ = 'app_setting'
+    key = db.Column(db.String(100), primary_key =True, nullable = False)
+    value = db.Column(db.Integer, nullable = False)

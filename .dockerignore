@@ -1,5 +1,4 @@
 .dockerignore
-*.csv
 *.db
 *.xlsx
 .git

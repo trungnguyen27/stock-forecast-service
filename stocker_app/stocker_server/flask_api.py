@@ -20,6 +20,8 @@ class PriceData(Resource):
         start_date = request.args.get('start-date')
         stock = FinancialData(ticker=ticker)
         result = stock.get_data(start_date)
+        if result.empty == True:
+            return []
         result = result[["ds", "Volume","Open","High","Low","Close"]]
         return jsonify(result.to_dict('records'))
 
@@ -60,9 +62,9 @@ class Prediction(Resource):
         return result
 
 class DataMigration(Resource):
-    def get(self):
+    def get(self, start):
         try:
-            process = tasks.migrate_data.delay()
+            process = tasks.migrate_data.delay(start=start)
         except Exception as ex:
             return ex     
         return 'DataMigration started'
