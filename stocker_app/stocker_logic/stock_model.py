@@ -8,6 +8,12 @@ import matplotlib.pyplot as plt
 import matplotlib
 from sklearn.preprocessing import MinMaxScaler
 import datetime
+import pickle, os
+
+from stocker_app.config.setting import configs
+from stocker_app.utils import database_utils as dbu
+
+model_path = configs['model_path']
 
 class SModel():
 
@@ -52,6 +58,22 @@ class SModel():
         print('Changepoints: {}'.format(' '.join(changepoints if not changepoints.empty else ['None'])))
         print('Number of training years: {}'.format(training_years))
 
+    def get_model_params(self, lag):
+        params = {
+            'ticker': self.stock.ticker,
+            'daily_seasonality': self.daily_seasonality,
+            'weekly_seasonality': self.weekly_seasonality,
+            'monthly_seasonality': self.monthly_seasonality,
+            'yearly_seasonality': self.yearly_seasonality,
+            'quarterly_seasonality': self.quarterly_seasonality,
+            'changepoint_prior_scale': self.changepoint_prior_scale,
+            'training_years': self.training_years,
+            'prediction_start': str(self.stock.max_date.date()),
+            'lag': lag,
+        }
+        print('Current Model Params: ', params)
+        return params
+
     def reset_model_paramaters(self):
         # Prophet parameters
         # Default prior from library
@@ -94,22 +116,22 @@ class SModel():
         
         return model
 
-    def predict(self, training_sets = dict(), days = 30):
+    def predict(self, training_sets = dict(), lags = [5], days = 30):
         # Use past self.training_years years for training
         if not training_sets:
             training_sets['%s price' %self.stock.ticker] = self.stock.data['Close']
         predictions = dict()
+        # Lags that corresponds to moving averages
+        self.lags = lags
         
         for i, (key, column) in enumerate(training_sets.items()):
-            result = self.predict_single_dataset(train = column, days = days)
+            result = self.predict_single_dataset(train = column, lag=lags[i], days = days)
             predictions[key] = result['predicted']
         self.predictions = predictions
         return predictions
 
-    def predict_single_dataset(self, train, days):
-        model = self.build_model()
-        model.fit(train)
-    
+    def predict_single_dataset(self, train, lag, days):
+        model = self.get_trained_model(train, lag = lag)
         # Future dataframe with specified number of days to predict
         predicted = model.make_future_dataframe(periods=days, freq='D')
         predicted = model.predict(predicted)
@@ -267,12 +289,25 @@ class SModel():
         self.changepoints = c_data
         return c_data
 
-    def get_trained_model(self, train):
-        model = self.build_model()
-        model.fit(train)
+    def get_trained_model(self, train, lag):
+        model_hash= dbu.get_prediction_model_hash(model_params = self.get_model_params(lag= lag))
+        model_dir = '%s/%s.pkl' %(model_path, model_hash)
+        print('Hash', model_hash)
 
+        from stocker_app.stock_database.DAO import DAO
+        dao = DAO()
+
+        status = dao.get_model_status(model_id = model_hash)
+
+        model = dao.get_prediction_model(model_id = model_hash)
+        if model != None:
+            model = pickle.loads(model)
+        else:
+            model = self.build_model()
+            model.fit(train)
+            pklobj = pickle.dumps(model)
+            dao.save_prediction_model( model_params = self.get_model_params(lag= lag), model = pklobj)
         return model
-        
 
     def export_results(self, name="Prediction"):
         if not self.predictions:
