@@ -53,17 +53,14 @@ class Migration():
             }))
             self.session.commit()
             return -1
+
+    def get_migration_status(self):
+        return self.__get_setting(key='migration')
             
     def migrate(self):
         if not self.file_found:
             print('Cannot load CSV, File Not Found')
             return
-        # self.connect_database()
-        if self.__get_setting(key='migration') != 1:
-            self.set_setting(key = 'migration', value = 1)
-        else:
-            print('Migration in Progress')
-            return False
         self.load_csv()
 
     def get_current_migration_progress(self):
@@ -131,6 +128,8 @@ class Migration():
         print('Getting data of %s' %ticker)
         from stocker_app.stock_database.schemas import Price_History
         query = self.session.query(Price_History).filter(Price_History.ticker == ticker)
-        df = pd.read_sql(query.statement, query.session.bind)
-        print('Data retrieved from database: %d records', df.count())
-        return df
+        data =query.first()
+        # df = pd.read_sql(query.statement, query.session.bind)
+        # print('Data retrieved from database: %d records', df.count())
+        return data
+
