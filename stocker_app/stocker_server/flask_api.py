@@ -6,14 +6,12 @@ from stocker_app.config.setting import configs
 from stocker_app.stocker_logic.stock_model import SModel
 from stocker_app.stock_database.financial_data import FinancialData
 from stocker_app.stocker_server import tasks as tasks
+from stocker_app.stock_database.migration.parse_csv import Migration
 
 model_path = configs['model_path']
-
-model = pickle.load(open("%s/prophet_model_MA_1_Close.pkl" %model_path, "rb"))
-
-class Hello(Resource):
+class WelcomePage(Resource):
     def get(self):
-        return 'hello'
+        return 'Welcome to STock Prediction Tool, create by Nguyen Quoc Trung & Nguyen Thi Hien'
 
 class PriceData(Resource):
     def get(self, ticker):
@@ -64,10 +62,30 @@ class Prediction(Resource):
 class DataMigration(Resource):
     def get(self, start):
         try:
-            process = tasks.migrate_data.delay(start=start)
+            migration = Migration()
+            inprogress = migration.get_migration_status() == 1
+            current_index= migration.get_current_migration_progress()
         except Exception as ex:
-            return ex     
-        return 'DataMigration started'
+            return ex
+        finally:
+            return {
+                'in_progress': inprogress,
+                'latest_index': current_index
+            }
+
+    def post(self, start):
+        try:
+            migration = Migration()
+            status = migration.get_migration_status()
+            if status != start:
+                migration.set_setting(key='migration', value=start)
+            if status == 0 and start == 1:
+                process = tasks.migrate_data.delay(start=start)
+        except Exception as ex:
+            print(ex)
+            return 'Error'
+        signal = 'STOP' if start == 0 else 'START' 
+        return 'Signal %s sent' %signal
 
 # @app.route('/describe', methods=["GET"])
 # def describe():
