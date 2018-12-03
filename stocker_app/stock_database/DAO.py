@@ -2,7 +2,7 @@ import pandas as pd
 from stocker_app.stock_database.schemas import database, Price_History, PredictionModel, ModelStatus, App_Setting
 from stocker_app.utils import database_utils as dbu
 from time import time
-class DOA():
+class DAO():
     def __init__(self):
         try:
             database.create_tables()
@@ -10,7 +10,7 @@ class DOA():
         except Exception as ex:
             print('failed to get session', ex)
         finally:
-            print('DOA intialized')
+            print('DAO intialized')
 
     def set_setting(self, key, value):
         m_setting = self.session.query(App_Setting).filter(App_Setting.key == key).first()
