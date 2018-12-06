@@ -1,0 +1,1 @@
+from stocker_app.stocker_server.endpoints import endpoints, model_endpoints
