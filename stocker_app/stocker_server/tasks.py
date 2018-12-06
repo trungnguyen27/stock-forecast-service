@@ -3,21 +3,25 @@ from stocker_app.stock_database.financial_data import FinancialData
 from stocker_app.stocker_server.celery_init import make_celery
 from stocker_app.application import app
 from stocker_app.stock_database.migration.parse_csv import Migration
+from stocker_app.models import PredictionParam
 from flask import jsonify
 
 celery_app = make_celery(app)
 
 @celery_app.task
-def predict(ticker, lags, start_date):
-    stock = FinancialData(ticker)
+def predict(params):
+    # only json can be passed to celery task, convert params json to params object
+    __params = PredictionParam()
+    result = __params.set_params_dict(params=params)
+    if result == False:
+        return 'Error'
+    print('[Predict Task] task received with params\n', __params)
+    stock = FinancialData(ticker=__params.ticker.upper())
     smodel = SModel(stock)
-    mas = stock.get_moving_averages(lags=lags)
-    predictions = smodel.predict(training_sets = mas, days = 30)
-    json=dict()
-    for (key, result) in predictions.items():
-        trimmed = result[['ds', 'direction', 'y', 'yhat_upper', 'yhat_lower']]
-        json[key]=trimmed.to_dict('records')
-    return json
+    smodel.set_params(params=__params)
+    mas = stock.get_moving_averages(lags=[__params.lag])
+    prediction = smodel.predict(training_set =  list(mas.values())[0], days = 30)
+    return prediction.get_json_result()
 
 @celery_app.task
 def migrate_data(start):
