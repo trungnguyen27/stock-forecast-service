@@ -20,7 +20,7 @@ services:
       - '.env'
     volumes:
       - '.:/stocker_app'
-    command:  gunicorn stocker_app.application:app -b 0.0.0.0:8000
+    command:  gunicorn stocker_app.application:app -b 0.0.0.0:8000 --log-level DEBUG
     mem_limit: 5000m
 
   celery:
