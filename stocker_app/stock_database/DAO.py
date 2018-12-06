@@ -46,20 +46,20 @@ class DAO():
 
     def save_prediction_model(self, model_params, model):
         try:
-            hash_id = dbu.get_prediction_model_hash(model_params = model_params)
+            hash_id = model_params.get_hash()
             record = PredictionModel(**{
                 'model_id': hash_id,
-                'ticker': model_params['ticker'],
-                'prediction_start': model_params['prediction_start'],
-                'changepoint_prior_scale': model_params['changepoint_prior_scale'],
-                'lag': model_params['lag'],
+                'ticker': model_params.ticker,
+                'prediction_start': model_params.date,
+                'changepoint_prior_scale': model_params.changepoint_prior_scale,
+                'lag': model_params.lag,
                 'model_pkl': model,
-                'daily_seasonality':model_params['daily_seasonality'],
-                'weekly_seasonality':model_params['weekly_seasonality'],
-                'monthly_seasonality':model_params['monthly_seasonality'],
-                'yearly_seasonality':model_params['yearly_seasonality'],
-                'quarterly_seasonality':model_params['quarterly_seasonality'],
-                'training_years': model_params['training_years']
+                'daily_seasonality':model_params.daily_seasonality,
+                'weekly_seasonality':model_params.weekly_seasonality,
+                'monthly_seasonality':model_params.monthly_seasonality,
+                'yearly_seasonality':model_params.yearly_seasonality,
+                'quarterly_seasonality':model_params.quarterly_seasonality,
+                'training_years': model_params.training_years
             })
             self.session.add(record)
             self.session.commit()
@@ -87,11 +87,12 @@ class DAO():
                 self.session.add(record)
             self.session.commit()
         except Exception as ex:
-            print(ex)
+            self.session.rollback()
+            print('[Update Model Status]\n', ex)
             return False
         finally:
             self.session.close()
-            print('update model %s as %s' %(model_id, status))
+            print('Update model %s as %s' %(model_id, status))
             return True
 
     def get_model_status(self, model_id):
@@ -121,9 +122,37 @@ class DAO():
                 return None
             else:
                 print('Model Queried Success:', model)
-                return model.model_pkl
+                return model
         except Exception as ex:
             print('Exception while geting predition model, mode_id: %s' %model_id, exec)
         finally:
             self.session.close()
             
+    def get_prediction_models(self):
+        try:
+            query = self.session.query(PredictionModel)
+            models=[]
+            if models == None:
+                return None
+            else:
+                models = pd.read_sql(query.statement, query.session.bind)
+                print('Model List Queried Success:', models)
+                return models
+        except Exception as ex:
+            print('Exception while geting predition model, mode_id')
+        finally:
+            self.session.close()
+            return models
+
+    def get_model_params(self, model_id):
+        try:
+            model = self.session.query(PredictionModel).filter(PredictionModel.model_id == model_id).first()
+            if model == None:
+                return None
+            else:
+                print('Model List Queried Success:', model)
+        except Exception as ex:
+            print('Exception while geting predition model, mode_id: %s' %model_id, exec)
+        finally:
+            self.session.close()
+            return model
