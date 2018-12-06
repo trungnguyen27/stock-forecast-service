@@ -1,0 +1,1 @@
+from stocker_app.utils.database_utils import get_prediction_model_hash
