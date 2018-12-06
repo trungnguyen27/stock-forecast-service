@@ -1,5 +1,6 @@
-from stocker_app.stock_database.database import Database
+from stocker_app.stock_database import Database
 from stocker_app.application import app
+
 
 database = Database(app)
 db = database.get_db_obj()

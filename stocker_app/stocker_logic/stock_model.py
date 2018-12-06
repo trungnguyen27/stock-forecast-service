@@ -11,88 +11,92 @@ import datetime
 import pickle, os
 
 from stocker_app.config.setting import configs
-from stocker_app.utils import database_utils as dbu
+from stocker_app.models import Prediction, PredictionParam
 
 model_path = configs['model_path']
 
 class SModel():
 
     def __init__(self, stock = None):
-        stock.describe_stock()
+        #stock.describe_stock()
+        from stocker_app.stock_database.DAO import DAO
+        self.dao = DAO()
         self.stock = stock
         self.intialize_model_parameters()
 
-    def intialize_model_parameters(self, 
-                            seasonalities=['monthly', 'quarterly', 'yearly'],
+    def set_params(self, params):
+        self.params = params
+
+    def intialize_model_parameters(self,
+                            lag = 5,
+                            seasonalities='m-q-y',
                             changepoint_prior_scale= 0.05,
                             changepoints = pd.DataFrame(),
                             training_years=10,
                             ):
-        self.reset_model_paramaters()
-
-        for seasonality in seasonalities:
-            if seasonality == 'daily':
-                self.daily_seasonality = True
-            elif seasonality == 'weekly':
-                self.weekly_seasonality = True
-            elif seasonality == 'monthly':
-                self.monthly_seasonality = True
-            elif seasonality == 'yearly':
-                self.yearly_seasonality = True
-            elif seasonality == 'quarterly':
-                self.quarterly_seasonality = True
+        self.params = PredictionParam(
+                                    ticker = self.stock.ticker.upper(),
+                                    lag = lag, 
+                                    seasonalities=seasonalities, 
+                                    changepoint_prior_scale=changepoint_prior_scale,
+                                    training_years = training_years,
+                                    date=self.stock.max_date.date())
+        #params intialization
+        # for seasonality in seasonalities:
+        #     if seasonality == 'daily':
+        #         self.params.daily_seasonality = True
+        #     elif seasonality == 'weekly':
+        #         self.params.weekly_seasonality = True
+        #     elif seasonality == 'monthly':
+        #         self.params.monthly_seasonality = True
+        #     elif seasonality == 'yearly':
+        #         self.params.yearly_seasonality = True
+        #     elif seasonality == 'quarterly':
+        #         self.params.quarterly_seasonality = True
     
         if not changepoints.empty:
             self.changepoints = changepoints
         else:
             self.changepoints = pd.DataFrame()
-        self.changepoint_prior_scale = changepoint_prior_scale
-        self.training_years = training_years
+
+        # model_id, status, prediction
+        self.model_id = self.params.get_hash()
+        self.status = self.get_model_status()
+        self.prediction = Prediction(status= self.status, params = self.params)
+        print('[Default]: \n%s', self.params.get_description())
+
+    def get_model_params(self):
+        print('Current Model Params: ', self.params)
+        return self.params
+
+    def get_model_status(self):
+        try:
+            status = self.dao.get_model_status(model_id=self.model_id)
+            return status
+        except Exception as ex:
+            print(ex)
+        return False
             
-        print('Seasonalities: Daily[{}] Weeky[{}] Monthly[{}] Yearly[{}] Quarterly[{}]'
-                .format(self.daily_seasonality, 
-                    self.weekly_seasonality,
-                    self.monthly_seasonality,
-                    self.yearly_seasonality,
-                    self.quarterly_seasonality))
-        print('Changepoints: {}'.format(' '.join(changepoints if not changepoints.empty else ['None'])))
-        print('Number of training years: {}'.format(training_years))
-
-    def get_model_params(self, lag):
-        params = {
-            'ticker': self.stock.ticker,
-            'daily_seasonality': self.daily_seasonality,
-            'weekly_seasonality': self.weekly_seasonality,
-            'monthly_seasonality': self.monthly_seasonality,
-            'yearly_seasonality': self.yearly_seasonality,
-            'quarterly_seasonality': self.quarterly_seasonality,
-            'changepoint_prior_scale': self.changepoint_prior_scale,
-            'training_years': self.training_years,
-            'prediction_start': str(self.stock.max_date.date()),
-            'lag': lag,
-        }
-        print('Current Model Params: ', params)
-        return params
-
     def reset_model_paramaters(self):
         # Prophet parameters
         # Default prior from library
-        self.changepoint_prior_scale = 0.05 
-        self.weekly_seasonality = False
-        self.daily_seasonality = False
-        self.monthly_seasonality = False
-        self.yearly_seasonality = False
-        self.quarterly_seasonality = False
-        self.changepoints = pd.DataFrame()
-        self.training_years = 0
-        self.test_months = 0
+        # self.changepoint_prior_scale = 0.05 
+        # self.weekly_seasonality = False
+        # self.daily_seasonality = False
+        # self.monthly_seasonality = False
+        # self.yearly_seasonality = False
+        # self.quarterly_seasonality = False
+        # self.changepoints = pd.DataFrame()
+        # self.training_years = 0
+        # self.test_months = 0
+        self.params = PredictionParam()
        
     def build_model(self, evaluation = False):
          # filter changepoints
         if not self.changepoints.empty:
             if evaluation:
                 upper_bound = self.stock.max_date - pd.DateOffset(months=self.test_months)
-                lower_bound = upper_bound - pd.DateOffset(years=self.training_years)
+                lower_bound = upper_bound - pd.DateOffset(years=self.params.training_years)
                 changepoints = self.changepoints[((self.changepoints['ds'] < upper_bound) & (self.changepoints['ds'] > lower_bound))]['ds']
             else:
                 changepoints = self.changepoints['ds']
@@ -101,37 +105,33 @@ class SModel():
 
         #changepoints = self.changepoints['ds'] if not self.changepoints.empty else None
         model = Prophet(interval_width=0.2, 
-                        daily_seasonality=self.daily_seasonality, 
-                        weekly_seasonality=self.weekly_seasonality, 
-                        yearly_seasonality=self.yearly_seasonality, 
-                        changepoint_prior_scale=self.changepoint_prior_scale, 
+                        daily_seasonality=self.params.daily_seasonality, 
+                        weekly_seasonality=self.params.weekly_seasonality, 
+                        yearly_seasonality=self.params.yearly_seasonality, 
+                        changepoint_prior_scale=self.params.changepoint_prior_scale, 
                         changepoints=changepoints)
-        if self.monthly_seasonality:
+        if self.params.monthly_seasonality:
             # Add monthly seasonality
             model.add_seasonality(name = 'monthly', period = 30.5, fourier_order = 5)
-        if self.quarterly_seasonality:
+        if self.params.quarterly_seasonality:
             model.add_seasonality(name='quarterly', period=90, fourier_order=5)
-        if self.yearly_seasonality:
+        if self.params.yearly_seasonality:
             model.add_seasonality(name='yearly', period=365, fourier_order=5)
         
         return model
 
-    def predict(self, training_sets = dict(), lags = [5], days = 30):
+    def predict(self, training_set = pd.DataFrame(), days = 30):
         # Use past self.training_years years for training
-        if not training_sets:
-            training_sets['%s price' %self.stock.ticker] = self.stock.data['Close']
-        predictions = dict()
-        # Lags that corresponds to moving averages
-        self.lags = lags
-        
-        for i, (key, column) in enumerate(training_sets.items()):
-            result = self.predict_single_dataset(train = column, lag=lags[i], days = days)
-            predictions[key] = result['predicted']
-        self.predictions = predictions
-        return predictions
+        if training_set.empty == True:
+            print('[Prediction] No training set found!')
+            return self.prediction
 
-    def predict_single_dataset(self, train, lag, days):
-        model = self.get_trained_model(train, lag = lag)
+        result = self.predict_single_dataset(train = training_set, days = days)
+        self.prediction.prediction= result['predicted']
+        return self.prediction
+
+    def predict_single_dataset(self, train, days):
+        model = self.get_trained_model(train)
         # Future dataframe with specified number of days to predict
         predicted = model.make_future_dataframe(periods=days, freq='D')
         predicted = model.predict(predicted)
@@ -159,8 +159,26 @@ class SModel():
         
         return result
 
+    def get_trained_model(self, train):
+     
+        model = self.dao.get_prediction_model(model_id = self.model_id)
+
+        if model != None:
+            model = pickle.loads(model.model_pkl)
+        else:
+            success = self.dao.update_model_status(model_id=self.model_id, status=2)
+            if success == False:
+                print('[Get train model] Error while updateing model status')
+                return None
+            model = self.build_model()
+            model.fit(train)
+            pklobj = pickle.dumps(model)
+            saved = self.dao.save_prediction_model( model_params = self.get_model_params(), model = pklobj)
+
+        self.dao.update_model_status(model_id=self.model_id, status=1)
+        return model
+
     def retrieve_google_trends(self, search, date_range):
-        
         # Set up the trend fetching object
         pytrends = TrendReq(hl='en-US', tz=360)
         kw_list = [search]
@@ -181,7 +199,7 @@ class SModel():
             return
         
         return trends, related_queries
-            
+        
     def changepoint_date_analysis(self, training_sets = None, search=None):
         self.reset_plot()
 
@@ -289,25 +307,6 @@ class SModel():
         self.changepoints = c_data
         return c_data
 
-    def get_trained_model(self, train, lag):
-        model_hash= dbu.get_prediction_model_hash(model_params = self.get_model_params(lag= lag))
-        model_dir = '%s/%s.pkl' %(model_path, model_hash)
-        print('Hash', model_hash)
-
-        from stocker_app.stock_database.DAO import DAO
-        dao = DAO()
-
-        status = dao.get_model_status(model_id = model_hash)
-
-        model = dao.get_prediction_model(model_id = model_hash)
-        if model != None:
-            model = pickle.loads(model)
-        else:
-            model = self.build_model()
-            model.fit(train)
-            pklobj = pickle.dumps(model)
-            dao.save_prediction_model( model_params = self.get_model_params(lag= lag), model = pklobj)
-        return model
 
     def export_results(self, name="Prediction"):
         if not self.predictions:
@@ -396,7 +395,7 @@ class SModel():
         for (key, column) in training_sets.items():
              # Training data starts self.training_years years before start date and goes up to start date
             train = column[(column['ds'] < start_date.date()) & 
-                            (column['ds'] > (start_date - pd.DateOffset(years=self.training_years)).date())]
+                            (column['ds'] > (start_date - pd.DateOffset(years=self.params.training_years)).date())]
     
             # Testing data is specified in the range
             test = column[(column['ds'] >= start_date.date()) & (column['ds'] <= end_date.date())]

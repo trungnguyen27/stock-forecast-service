@@ -16,51 +16,54 @@ class FinancialData():
     currency = '000VND'
     def __init__(self, ticker = "VIC"):
         #["Ticker","Date","OpenFixed","HighFixed","LowFixed","CloseFixed","Volume","Open","High","Low","Close","VolumeDeal","VolumeFB","VolumeFS"]
-        from stocker_app.stock_database.stock_query import stockquery
-        migration = stockquery()
         self.ticker = ticker.capitalize()
-        data = migration.get_data(ticker=ticker)
-        if data.empty == True:
-            self.data = pd.DataFrame()
-            return
-        # data = data[(data['Ticker']== ticker)]
-        data.columns=["Id", "Ticker","Date","Open", "High", "Low", "Close", "Volume"]
-        data['Date']=pd.to_datetime(data.Date)
-        #data.Timestamp= data['']
-        data.index = data['Date']
-        data = data.sort_values(by=['Date'], ascending=[True])
-        #remove duplicates
-        data = data.drop_duplicates(subset=['Ticker', 'Date'])
+        try:
+            from stocker_app.stock_database.stock_query import stockquery
+            migration = stockquery()
+            data = migration.get_data(ticker=ticker)
+            if data.empty == True:
+                self.data = pd.DataFrame()
+                return
+            # data = data[(data['Ticker']== ticker)]
+            data.columns=["Id", "Ticker","Date","Open", "High", "Low", "Close", "Volume"]
+            data['Date']=pd.to_datetime(data.Date)
+            #data.Timestamp= data['']
+            data.index = data['Date']
+            data = data.sort_values(by=['Date'], ascending=[True])
+            #remove duplicates
+            data = data.drop_duplicates(subset=['Ticker', 'Date'])
 
-        data = data.resample('D').fillna(method='ffill')
+            data = data.resample('D').fillna(method='ffill')
 
-        data['ds']=data.index
-        data['y']=data['Close']
+            data['ds']=data.index
+            data['y']=data['Close']
 
-        if ('Adj. Close' not in data.columns):
-            data['Adj. Close'] = data['Close']
-            data['Adj. Open'] = data['Open']
-        
-        self.data = data
-        # Minimum and maximum date in range
-        self.min_date = min(data['Date'])
-        self.max_date = max(data['Date'])
+            if ('Adj. Close' not in data.columns):
+                data['Adj. Close'] = data['Close']
+                data['Adj. Open'] = data['Open']
+            
+            self.data = data
+            # Minimum and maximum date in range
+            self.min_date = min(data['Date'])
+            self.max_date = max(data['Date'])
 
-        self.years = (self.max_date - self.min_date).days/365
-        
-        self.max_price = np.max(self.data['y'])
-        self.min_price = np.min(self.data['y'])
-        
-        self.min_price_date = self.data[self.data['y'] == self.min_price]['Date']
-        self.min_price_date = self.min_price_date[self.min_price_date.index[0]]
-        self.max_price_date = self.data[self.data['y'] == self.max_price]['Date']
-        self.max_price_date = self.max_price_date[self.max_price_date.index[0]]
-        
-        # The starting price (starting with the opening price)
-        self.starting_price = float(self.data.ix[0, 'Adj. Open'])
-        
-        # The most recent price
-        self.most_recent_price = float(self.data.ix[len(self.data) - 1, 'y'])
+            self.years = (self.max_date - self.min_date).days/365
+            
+            self.max_price = np.max(self.data['y'])
+            self.min_price = np.min(self.data['y'])
+            
+            self.min_price_date = self.data[self.data['y'] == self.min_price]['Date']
+            self.min_price_date = self.min_price_date[self.min_price_date.index[0]]
+            self.max_price_date = self.data[self.data['y'] == self.max_price]['Date']
+            self.max_price_date = self.max_price_date[self.max_price_date.index[0]]
+            
+            # The starting price (starting with the opening price)
+            self.starting_price = float(self.data.ix[0, 'Adj. Open'])
+            
+            # The most recent price
+            self.most_recent_price = float(self.data.ix[len(self.data) - 1, 'y'])
+        except Exception as ex:
+            print(ex)
 
     # Get the data from start date until the last record
     def get_data(self, start_date):
