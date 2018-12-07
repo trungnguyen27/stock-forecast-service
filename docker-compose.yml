@@ -25,7 +25,7 @@ services:
 
   celery:
     image: 'quoctrunguit/stocker'
-    command: celery worker -A stocker_app.stocker_server.runcelery.celery --loglevel=debug
+    command: celery worker -A stocker_app.application.celery --loglevel=debug
     env_file:
       - '.env'
     volumes:
