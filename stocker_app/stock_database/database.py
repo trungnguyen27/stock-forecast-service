@@ -1,7 +1,6 @@
 import os
 from flask_sqlalchemy import SQLAlchemy
-
-from stocker_app.config.setting import configs
+from stocker_app.config import configs
 
 class Database():
     def __init__(self, app):

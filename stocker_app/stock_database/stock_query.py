@@ -1,4 +1,4 @@
-from stocker_app.config.setting import configs
+from stocker_app.config import configs
 import pandas as pd
 from stocker_app.stock_database.schemas import database, Price_History
 csv_path = configs['csv_path']

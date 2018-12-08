@@ -2,7 +2,7 @@ import os, logging
 from flask import Flask
 from stocker_app import celery
 from stocker_app.utils.celery_util import init_celery
-from stocker_app.config.setting import configs
+from stocker_app.config import configs
 
 def create_app(config=None, environment=None):
     app = Flask(__name__)

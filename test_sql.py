@@ -11,13 +11,13 @@ stock = FinancialData(ticker)
 smodel = SModel(stock)
 mas = stock.get_moving_averages(lags=lags)
 smodel.intialize_model_parameters(changepoint_prior_scale=prior)
-predictions = smodel.predict(training_sets = mas, lags =lags,  days = 30)
+predictions = smodel.predict(training_set = list(mas.values())[0], lags =lags,  days = 30)
 
 
-def write(df, ticker, start_date, prior, lag ):
-    dao = DAO()
-    data = dao.save_prediction(ticker = ticker, start_date = start_date, prior = prior, lag = lag, prediction_df = df)
-    print(data)
+# def write(df, ticker, start_date, prior, lag ):
+#     dao = DAO()
+#     data = dao.save_prediction(ticker = ticker, start_date = start_date, prior = prior, lag = lag, prediction_df = df)
+#     print(data)
 
 for index, (key, result) in enumerate(predictions.items()):
     trimmed = result[['ds', 'yhat', 'y', 'yhat_upper', 'yhat_lower']]

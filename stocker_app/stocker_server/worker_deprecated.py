@@ -3,7 +3,7 @@ import os
 import redis
 from rq import Worker, Queue, Connection
 
-from stocker_app.config.setting import configs
+from stocker_app.config import configs
 
 listen = ['high', 'default', 'low']
 

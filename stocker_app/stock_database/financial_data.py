@@ -5,7 +5,7 @@ from sklearn.preprocessing import MinMaxScaler
 # matplotlib pyplot for plotting
 import matplotlib.pyplot as plt
 import matplotlib
-from stocker_app.config.setting import configs
+from stocker_app.config import configs
 
 warnings.filterwarnings('ignore')
 

@@ -1,6 +1,6 @@
 from stocker_app.stocker_logic.stock_model import SModel
 from stocker_app.stock_database.financial_data import FinancialData
-from stocker_app.config.setting import configs
+from stocker_app.config import configs
 import pandas as pd
 
 stock = FinancialData(ticker="VNM")

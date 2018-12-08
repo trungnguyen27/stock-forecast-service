@@ -1,0 +1,1 @@
+from stocker_app.config import configs

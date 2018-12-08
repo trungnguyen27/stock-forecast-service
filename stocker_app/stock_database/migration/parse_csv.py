@@ -4,7 +4,7 @@ from time import time
 from datetime import datetime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy_utils import database_exists
-from stocker_app.config.setting import configs
+from stocker_app.config import configs
 
 
 csv_path = configs['csv_path']

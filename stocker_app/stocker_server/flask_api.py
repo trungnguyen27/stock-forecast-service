@@ -1,19 +1,20 @@
 from flask import Flask, jsonify, request
 from flask_restful import Resource
-import pickle
-import json
-from stocker_app.config.setting import configs
+import pickle, json
+from stocker_app.config import configs
 from stocker_app.stocker_logic.stock_model import SModel
 from stocker_app.stock_database.financial_data import FinancialData
-from stocker_app.stocker_server import tasks as tasks
+from stocker_app.stocker_server.tasks import predict, migrate_data
 from stocker_app.stock_database.migration.parse_csv import Migration
-from stocker_app.utils import database_utils as dbu
 from stocker_app.models import Prediction, PredictionParam
+from stocker_app.stock_database.DAO import DAO
+
 model_path = configs['model_path']
+dao = DAO()
 
 class WelcomePage(Resource):
     def get(self):
-        return 'Welcome to STock Prediction Tool, create by Nguyen Quoc Trung & Nguyen Thi Hien'
+        return 'Welcome to Stock Prediction Tool, create by Nguyen Quoc Trung & Nguyen Thi Hien'
 
 class PriceData(Resource):
     def get(self, ticker):
@@ -52,10 +53,6 @@ class MovingAverage(Resource):
         return  jsonify(json)
 
 class PredictionAPI(Resource):
-    def __init__(self):
-        from stocker_app.stock_database.DAO import DAO
-        self.dao = DAO()
-
     def get(self):
         model_id = request.args.get('model-id', None)
         if model_id == None:
@@ -63,19 +60,18 @@ class PredictionAPI(Resource):
 
         predictions = {}
         status = {}
-        params_db = self.dao.get_prediction_model(model_id = model_id)
+        params_db = dao.get_prediction_model(model_id = model_id)
         params = PredictionParam()
         params.set_params(params=params_db)
         try:
-            status = self.dao.get_model_status(model_id=model_id)
+            status = dao.get_model_status(model_id=model_id)
             message = ''
-            import stocker_app.stocker_server.tasks as tasks
             if status['status'] == 0:
                 message = 'Please build the model first /model/build'
             elif status['status'] == 2:
                 message = 'Model is being built, please try again'
             elif status['status'] == 1:
-                predictions = tasks.predict.delay(params=params.get_dict())
+                predictions = predict.delay(params=params.get_dict())
                 result = predictions.wait()
                 return result
 
@@ -94,10 +90,6 @@ class PredictionAPI(Resource):
             }
 
 class ModelBuild(Resource):
-    def __init__(self):
-        from stocker_app.stock_database.DAO import DAO
-        self.dao = DAO()
-
     def post(self, ticker):
         start_date = request.args.get('start-date', '2016-08-01')
         lag = request.args.get('lag', 1)
@@ -111,12 +103,11 @@ class ModelBuild(Resource):
             params = PredictionParam(seasonalities = seasonalities, changepoint_prior_scale=prior, ticker=ticker, lag = lag, date=start_date)
             model_id = params.get_hash()
            
-            status = self.dao.get_model_status(model_id=model_id)
+            status = dao.get_model_status(model_id=model_id)
             resp_status = 'None'
             if status['status'] == 0:
-                import stocker_app.stocker_server.tasks as tasks
-                self.dao.update_model_status(model_id = model_id, status=2)
-                tasks.predict.delay(params=params.get_dict())
+                dao.update_model_status(model_id = model_id, status=2)
+                predict.delay(params=params.get_dict())
                 resp_status = 'started'
             elif status['status'] == 1:
                 resp_status= 'finished'
@@ -134,21 +125,14 @@ class ModelBuild(Resource):
 
 
 class ModelStatus(Resource):
-    def __init__(self):
-        from stocker_app.stock_database.DAO import DAO
-        self.dao = DAO()
-        
     def get(self, model_id):
-        status = self.dao.get_model_status(model_id=model_id)
+        status = dao.get_model_status(model_id=model_id)
         return status
 
 class ModelList(Resource):
-    def __init__(self):
-        from stocker_app.stock_database.DAO import DAO
-        self.dao = DAO()
         
     def get(self):
-        models = self.dao.get_prediction_models().drop('model_pkl', axis=1)
+        models = dao.get_prediction_models().drop('model_pkl', axis=1)
         models =  models.to_dict('records')
         return jsonify(models)
 
@@ -173,25 +157,9 @@ class DataMigration(Resource):
             if status != start:
                 migration.set_setting(key='migration', value=start)
             if status == 0 and start == 1:
-                process = tasks.migrate_data.delay(start=start)
+                process = migrate_data.delay(start=start)
         except Exception as ex:
             print(ex)
             return 'Error'
         signal = 'STOP' if start == 0 else 'START' 
         return 'Signal %s sent' %signal
-
-# @app.route('/describe', methods=["GET"])
-# def describe():
-#     result = stock.describe_stock()
-#     return jsonify(result)
-
-# @app.route('/price/<string:ticker>', methods = ["GET"])
-# def get_stock_data(ticker):
-#     return stock.get_data().to_json(orient="records")
-# #defining a /hello route for only post requests
-# @app.route('/future', methods=['GET'])
-# def index():
-    
-
-# # if __name__ == '__main__':
-# #     app.run(debug=True)

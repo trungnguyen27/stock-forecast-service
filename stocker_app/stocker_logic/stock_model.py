@@ -10,7 +10,7 @@ from sklearn.preprocessing import MinMaxScaler
 import datetime
 import pickle, os
 
-from stocker_app.config.setting import configs
+from stocker_app.config import configs
 from stocker_app.models import Prediction, PredictionParam
 
 model_path = configs['model_path']

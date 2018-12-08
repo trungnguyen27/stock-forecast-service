@@ -4,7 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 import os, logging
 from stocker_app.stocker_server.endpoints import endpoints
 from stocker_app.stocker_server.intialize_endpoints import initialize_endpoints
-from stocker_app.config.setting import configs
+from stocker_app.config import configs
 from stocker_app.factory import create_app
 from stocker_app import celery
 from stocker_app.utils.celery_util import init_celery
