@@ -2,13 +2,13 @@ version: '2'
 
 services:
   redis:
-    image: 'redis:4.0.5-alpine'
-    command: ['redis-server', '--appendonly', 'yes']
+    image: 'redis:4.0-alpine'
+    command: redis-server
     volumes:
-      - 'redis:/data'
+      - 'redis:/var/lib/redis/data'
     ports:
       - '6379:6379'
-    restart: always
+    mem_limit: 500m
 
   stockerapp:
     image: 'quoctrunguit/stocker'
@@ -25,7 +25,7 @@ services:
 
   celery:
     image: 'quoctrunguit/stocker'
-    command: celery worker -A stocker_app.application.celery --loglevel=debug
+    command: celery worker -A stocker_app.application.celery --concurrency=4 --loglevel=debug
     env_file:
       - '.env'
     volumes:
