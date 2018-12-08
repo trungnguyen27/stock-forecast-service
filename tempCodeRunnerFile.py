@@ -1,1 +1,1 @@
-m.get_data(ticker='000001.SS')
+changepoint_prior_scale
