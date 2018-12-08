@@ -1,8 +1,8 @@
 from stocker_app.stock_database import Database
 from stocker_app.application import app
+from stocker_app.factory import create_app
 
-
-database = Database(app)
+database = Database(create_app())
 db = database.get_db_obj()
 
 print('INTIALIZING SCHEMAS')
