@@ -5,7 +5,7 @@ class PredictionParam():
         ticker = 'VIC',
         seasonalities='m-q-y',
         changepoint_prior_scale = 0.05,
-        training_years = 10,
+        training_years = 5,
         date = '2010-01-01',
         lag = 5
         ):
