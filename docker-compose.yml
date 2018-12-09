@@ -3,9 +3,9 @@ version: '2'
 services:
   redis:
     image: 'redis:4.0-alpine'
-    command: redis-server
+    command: redis-server --appendonly yes
     volumes:
-      - 'redis:/var/lib/redis/data'
+      - './data:/data'
     ports:
       - '6379:6379'
     mem_limit: 500m
@@ -13,14 +13,14 @@ services:
   stockerapp:
     image: 'quoctrunguit/stocker'
     expose:
-      - "8000"
+      - "443"
     ports:
-      - "80:80"
+      - "443:443"
     env_file:
       - '.env'
     volumes:
       - '.:/stocker_app'
-    command:  gunicorn stocker_app.application:app -b 0.0.0.0:80 --log-level DEBUG
+    command:  gunicorn --certfile cert.pem --keyfile key.pem stocker_app.application:app -b 0.0.0.0:443 --log-level DEBUG
     mem_limit: 5000m
 
   celery:
