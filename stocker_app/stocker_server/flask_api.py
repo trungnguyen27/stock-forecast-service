@@ -20,7 +20,7 @@ class PriceData(Resource):
     def get(self, ticker):
         start_date = request.args.get('start-date')
         stock = FinancialData(ticker=ticker)
-        result = stock.get_data(start_date)
+        result = stock.get_data(start_date).tail(100)
         if result.empty == True:
             return []
         result = {
