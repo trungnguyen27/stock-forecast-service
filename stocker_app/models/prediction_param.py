@@ -1,8 +1,10 @@
 from stocker_app.utils.database_utils import get_prediction_model_hash
+from datetime import datetime
 class PredictionParam():
     def __init__(
         self,
         ticker = 'VIC',
+        label = 'close',
         seasonalities='m-q-y',
         changepoint_prior_scale = 0.05,
         training_years = 5,
@@ -11,6 +13,7 @@ class PredictionParam():
         ):
         
         self.ticker = ticker.upper()
+        self.label = label.lower()
         self.__parse_seasonalities__(seasonalities_str=seasonalities)
         self.changepoint_prior_scale = changepoint_prior_scale
         self.training_years = training_years
@@ -39,6 +42,7 @@ class PredictionParam():
 
     def set_params(self, params):
         self.ticker = params.ticker
+        self.label = params.label
         self.changepoint_prior_scale = params.changepoint_prior_scale
         self.training_years = params.training_years
         self.date = str(params.prediction_start)
@@ -52,6 +56,7 @@ class PredictionParam():
     def set_params_dict(self, params):
         if type(params) is dict:
             self.ticker = params['ticker']
+            self.label = params['label']
             self.changepoint_prior_scale = params['changepoint_prior_scale']
             self.training_years = params['training_years']
             self.date = str(params['date'])
@@ -66,6 +71,7 @@ class PredictionParam():
 
     def get_description(self):
         ticker = 'Ticker: %s\n' %self.ticker
+        label = 'Label: %s\n' %self.label
         seasonality = 'Seasonalities: Daily[{}] Weeky[{}] Monthly[{}] Yearly[{}] Quarterly[{}]\n'.format(
                         self.daily_seasonality, 
                         self.weekly_seasonality,
@@ -75,13 +81,15 @@ class PredictionParam():
         training_years = 'Number of training years: {}\n'.format(self.training_years)
         lag = 'Lag: %d\n' %self.lag
         date = 'Prediction start at: %s\n' %self.date
-        desc =ticker + lag + seasonality + training_years + date
+        desc =ticker + label + lag + seasonality + training_years + date
         return desc
 
     def parse_params_from_request(self, ticker, lag, piror, seasonalities, date):
         self.lag = int(lag)
 
-    
+    def datetime(self):
+        return datetime.strptime(self.date, '%Y-%m-%d')
+
     def get_dict(self):
         return self.__dict__
 

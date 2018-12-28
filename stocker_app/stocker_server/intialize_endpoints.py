@@ -1,6 +1,6 @@
 def initialize_endpoints(api):
     from stocker_app.stocker_server import endpoints, model_endpoints
-    from stocker_app.stocker_server.flask_api import ModelBuild, PredictionAPI, ModelStatus, ModelList,  PriceData, MovingAverage, PredictionAPI, WelcomePage, DataMigration
+    from stocker_app.stocker_server.flask_api import ModelBuild, PredictionAPI, ModelStatus, ModelList,  PriceData, MovingAverage, PredictionAPI, WelcomePage, DataMigration, PredictionEvaluation
     
     data_endpoint = endpoints['price_data']
     ma_endpoint = endpoints['moving_average_data']
@@ -20,6 +20,7 @@ def initialize_endpoints(api):
     api.add_resource(PriceData, '%s/<string:ticker>' %data_endpoint)
     api.add_resource(MovingAverage, '%s/<string:ticker>' %ma_endpoint)
     api.add_resource(PredictionAPI, '%s' %prediction_endpoint)
+    api.add_resource(PredictionEvaluation, '%s/evaluation' %prediction_endpoint)
 
     api.add_resource(WelcomePage, '/')
     api.add_resource(DataMigration, '%s/<int:start>' %migration_endpoint)

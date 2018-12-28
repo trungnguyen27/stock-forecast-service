@@ -2,6 +2,7 @@ import pandas as pd
 from stocker_app.stock_database.schemas import database, Price_History, PredictionModel, ModelStatus, App_Setting
 from stocker_app.utils import database_utils as dbu
 from time import time
+
 class DAO():
     def __init__(self):
         try:
@@ -44,8 +45,21 @@ class DAO():
             'ma':modelobj.ma
         }
 
+    def get_data(self, ticker = 'VIC'):
+        print('Getting data of %s' %ticker)
+        df = {}
+        try:
+            query = self.session.query(Price_History).filter(Price_History.ticker == ticker)
+            df = pd.read_sql(query.statement, query.session.bind)
+        except Exception as ex:
+            print(ex)
+        finally:
+            self.session.close()
+        return df
+
     def save_prediction_model(self, model_params, model):
         try:
+            print('SAVING PREDICTION MODEL')
             hash_id = model_params.get_hash()
             record = PredictionModel(**{
                 'model_id': hash_id,
@@ -59,7 +73,8 @@ class DAO():
                 'monthly_seasonality':model_params.monthly_seasonality,
                 'yearly_seasonality':model_params.yearly_seasonality,
                 'quarterly_seasonality':model_params.quarterly_seasonality,
-                'training_years': model_params.training_years
+                'training_years': model_params.training_years,
+                'label': model_params.label
             })
             self.session.add(record)
             self.session.commit()
@@ -72,9 +87,11 @@ class DAO():
             return False
         finally:
             self.session.close()
+            print('DONE SAVING PREDICTION MODEL')
             return True
 
     def update_model_status(self, model_id,  status=0):
+        message = ''
         try:
             status_db = self.session.query(ModelStatus).filter(ModelStatus.model_id == model_id).first()
             if status_db != None:
@@ -88,11 +105,12 @@ class DAO():
             self.session.commit()
         except Exception as ex:
             self.session.rollback()
-            print('[Update Model Status]\n', ex)
+            message = '[Update Model Status]\n' + str(ex)
             return False
         finally:
             self.session.close()
-            print('Update model %s as %s' %(model_id, status))
+            message = 'Update model %s as %s' %(model_id, status)
+            print(message)
             return True
 
     def get_model_status(self, model_id):
@@ -113,7 +131,10 @@ class DAO():
 
         except Exception as ex:
             print(ex)
-            return False
+            return {
+                'status': -1,
+                'message': str(ex)
+            }
     
     def get_prediction_model(self, model_id):
         try:
@@ -140,6 +161,7 @@ class DAO():
                 return models
         except Exception as ex:
             print('Exception while geting predition model, mode_id')
+            return ex
         finally:
             self.session.close()
             return models

@@ -110,7 +110,7 @@ class Migration():
                     'opn':i['Open'],
                     'hi': i['High'],
                     'lo':i['Low'],
-                    'close':i['Close'],
+                    'close':i['close'],
                     'vol':i['Volume']
                 })
                 #add all the records

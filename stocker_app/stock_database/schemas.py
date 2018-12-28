@@ -1,8 +1,6 @@
 from stocker_app.stock_database import Database
-from stocker_app.application import app
-from stocker_app.factory import create_app
 
-database = Database(create_app())
+database = Database()
 db = database.get_db_obj()
 
 print('INTIALIZING SCHEMAS')
@@ -35,7 +33,8 @@ class PredictionModel(db.Model):
     monthly_seasonality = db.Column(db.Boolean)
     yearly_seasonality = db.Column(db.Boolean)
     quarterly_seasonality = db.Column(db.Boolean)
-    training_years = db.Column(db.Integer)
+    training_years = db.Column(db.Float)
+    label = db.Column(db.String(10), nullable=False)
 
 class ModelStatus(db.Model):
     __table_name__='model_status'

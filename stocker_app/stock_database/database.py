@@ -1,11 +1,13 @@
 import os
 from flask_sqlalchemy import SQLAlchemy
 from stocker_app.config import configs
+from stocker_app.factory import create_app
 
 class Database():
-    def __init__(self, app):
+    def __init__(self):
         postgreurl = configs['postgre_connection_string']
         db_url = os.getenv("DATABASE_URL", postgreurl)
+        app = create_app()
         app.config['SQLALCHEMY_DATABASE_URI'] = db_url
         try:
             self.db = SQLAlchemy(app)

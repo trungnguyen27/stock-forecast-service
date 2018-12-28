@@ -11,7 +11,7 @@ stock.plot_stock()
 lags = [1, 30]
 days = 7
 
-mas = stock.get_moving_averages(lags = lags, columns=['Close'])
+mas = stock.get_moving_average(lags = lags, columns=['close'])
 
 stock.plot_stock(show_data = False, show_volume=True, moving_averages=mas)
 
@@ -33,12 +33,12 @@ smodel.evaluate_prediction(mas)
 # smodel.evaluate_prediction(training_sets=mas)
 
 
-# smodel.set_moving_averages(lags=[90], columns=['Close'])
+# smodel.set_moving_averages(lags=[90], columns=['close'])
 # #smodel.plot_stock(show_data=False, show_moving_avg=True, show_volume=True)
 # #smodel.predict(use_moving_avg=True, days = 90)
 # smodel.evaluate_prediction()
 # smodel.plot_stock(show_moving_avg=True)
-#smodel.plot_stock(show_moving_avg=True, columns=['Close'])
+#smodel.plot_stock(show_moving_avg=True, columns=['close'])
 #smodel.build_model()
 
 #smodel.predict(use_moving_avg=True,days=90,training_years=10)

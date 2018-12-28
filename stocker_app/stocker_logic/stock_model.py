@@ -8,61 +8,63 @@ import matplotlib.pyplot as plt
 import matplotlib
 from sklearn.preprocessing import MinMaxScaler
 import datetime
-import pickle, os
+import pickle, os, asyncio
 
 from stocker_app.config import configs
 from stocker_app.models import Prediction, PredictionParam
+
+from stocker_app.stock_database.DAO import DAO
+dao = DAO()
 
 model_path = configs['model_path']
 
 class SModel():
 
-    def __init__(self, stock = None):
+    def __init__(self, params = None):
         #stock.describe_stock()
-        from stocker_app.stock_database.DAO import DAO
-        self.dao = DAO()
-        self.stock = stock
-        self.intialize_model_parameters()
+        # if stock != None:
+        #     self.stock = stock
+        if params == None:
+            self.intialize_model_parameters()
+        else:
+            self.set_params(params)
+        self.initialize_model_variables()
 
     def set_params(self, params):
         self.params = params
+        self.changepoints = pd.DataFrame()
 
     def intialize_model_parameters(self,
                             lag = 5,
+                            ticker = 'VIC',
+                            label = 'close',
                             seasonalities='m-q-y',
                             changepoint_prior_scale= 0.05,
                             changepoints = pd.DataFrame(),
-                            training_years=10,
+                            training_years=5,
+                            date='2010-01-01'
                             ):
         self.params = PredictionParam(
-                                    ticker = self.stock.ticker.upper(),
+                                    ticker = ticker,
+                                    label = label,
                                     lag = lag, 
                                     seasonalities=seasonalities, 
                                     changepoint_prior_scale=changepoint_prior_scale,
                                     training_years = training_years,
-                                    date=self.stock.max_date.date())
-        #params intialization
-        # for seasonality in seasonalities:
-        #     if seasonality == 'daily':
-        #         self.params.daily_seasonality = True
-        #     elif seasonality == 'weekly':
-        #         self.params.weekly_seasonality = True
-        #     elif seasonality == 'monthly':
-        #         self.params.monthly_seasonality = True
-        #     elif seasonality == 'yearly':
-        #         self.params.yearly_seasonality = True
-        #     elif seasonality == 'quarterly':
-        #         self.params.quarterly_seasonality = True
-    
+                                    date=date)
         if not changepoints.empty:
             self.changepoints = changepoints
         else:
             self.changepoints = pd.DataFrame()
-
-        # model_id, status, prediction
+    
+    def initialize_model_variables(self):
+           # model_id, status, prediction
         self.model_id = self.params.get_hash()
         self.status = self.get_model_status()
         self.prediction = Prediction(status= self.status, params = self.params)
+
+        self.start_date = datetime.datetime.strptime(self.params.date, '%Y-%m-%d')
+        self.end_date = self.start_date + datetime.timedelta(days = 365 * self.params.training_years)
         print('[Default]: \n%s', self.params.get_description())
 
     def get_model_params(self):
@@ -71,24 +73,13 @@ class SModel():
 
     def get_model_status(self):
         try:
-            status = self.dao.get_model_status(model_id=self.model_id)
+            status = dao.get_model_status(model_id=self.model_id)
             return status
         except Exception as ex:
             print(ex)
         return False
-            
+
     def reset_model_paramaters(self):
-        # Prophet parameters
-        # Default prior from library
-        # self.changepoint_prior_scale = 0.05 
-        # self.weekly_seasonality = False
-        # self.daily_seasonality = False
-        # self.monthly_seasonality = False
-        # self.yearly_seasonality = False
-        # self.quarterly_seasonality = False
-        # self.changepoints = pd.DataFrame()
-        # self.training_years = 0
-        # self.test_months = 0
         self.params = PredictionParam()
        
     def build_model(self, evaluation = False):
@@ -120,24 +111,52 @@ class SModel():
         
         return model
 
-    def predict(self, training_set = pd.DataFrame(), days = 30):
+    def predict_deprecated(self, training_set = pd.DataFrame(), days = 30):
         # Use past self.training_years years for training
         if training_set.empty == True:
             print('[Prediction] No training set found!')
             return self.prediction
 
-        result = self.predict_single_dataset(train = training_set, days = days)
+        result = self.predict_single_dataset(training_set = training_set, days = days)
         self.prediction.prediction= result['predicted']
         return self.prediction
 
-    def predict_single_dataset(self, train, days):
-        model = self.get_trained_model(train)
+    def retreive_param_info(model_id):
+        params_db = dao.get_prediction_model(model_id = model_id)
+        params = PredictionParam()
+        params.set_params(params=params_db)
+        self.prediction = Prediction(status= this.get_, params = self.params)
+
+    def predict(self,  days = 30):
+         # Use past self.training_years years for training
+        # if training_set.empty == True:
+        #     print('[Prediction] No training set found!')
+        #     return self.prediction
+        model_id = self.model_id
+        status = dao.get_model_status(model_id)
+        if status['status'] != 1:
+            return {
+                'message': 'model is not ready',
+                'code': -1
+            }
+
+        result = self.predict_single_dataset(model_id, days = days)
+        self.prediction.prediction= result['prediction']
+        self.prediction.past = result['predicted']
+        self.prediction.changepoints = result['changepoints']
+        self.prediction.days = days
+        self.interval_width = result['interval_width']
+        return self.prediction
+
+    def predict_single_dataset_deprecated(self, model_id, days):
+        model =  dao.get_prediction_model(model_id)
+        model = pickle.loads(model.model_pkl)
         # Future dataframe with specified number of days to predict
         predicted = model.make_future_dataframe(periods=days, freq='D')
         predicted = model.predict(predicted)
         # Only concerned with future dates
-        future = predicted[predicted['ds'] >= self.stock.max_date.date()]
-    
+        future = predicted[predicted['ds'] >= datetime.strptime(self.params.date)]
+        # self.stock.max_date.date()
         # Remove the weekends
         #future = self.remove_weekends(future)
 
@@ -159,25 +178,51 @@ class SModel():
         
         return result
 
-    def get_trained_model(self, train):
-     
-        model = self.dao.get_prediction_model(model_id = self.model_id)
 
+    def predict_single_dataset(self, model_id, days):
+        model =  dao.get_prediction_model(model_id = model_id)
+        model = pickle.loads(model.model_pkl)
+        # Future dataframe with specified number of days to predict
+        predicted = model.make_future_dataframe(periods=days, freq='D')
+        predicted = model.predict(predicted)
+
+        predicted = predicted.dropna()
+        print('NOW PARSING DATE: ',self.params.date)
+        future = predicted[predicted['ds'] >= datetime.datetime.strptime(self.params.date, "%Y-%m-%d")]
+        
+        # Calculate whether increase or not
+        future['diff'] = future['yhat'].diff()
+
+        # Find the prediction direction and create separate dataframes
+        future['direction'] = (future['diff']> 0) *1
+        future['y'] = future['yhat']
+        predicted['y'] = predicted['yhat']
+        
+        return {
+            'prediction': future,
+            'predicted': predicted,
+            'changepoints': model.changepoints,
+            'interval_width': model.interval_width
+        }
+
+    def create_trained_model(self, training_set):
+        model = dao.get_prediction_model(model_id = self.model_id)
         if model != None:
             model = pickle.loads(model.model_pkl)
         else:
-            success = self.dao.update_model_status(model_id=self.model_id, status=2)
+            success = dao.update_model_status(model_id=self.model_id, status=2)
             if success == False:
                 print('[Get train model] Error while updateing model status')
                 return None
             model = self.build_model()
-            model.fit(train)
+            model.fit(training_set)
             pklobj = pickle.dumps(model)
-            saved = self.dao.save_prediction_model( model_params = self.get_model_params(), model = pklobj)
-
-        self.dao.update_model_status(model_id=self.model_id, status=1)
+            print('PM PARAMS TO SAVE', self.get_model_params())
+            saved =  dao.save_prediction_model( model_params = self.get_model_params(), model = pklobj)
+            if saved == False:
+                return None
         return model
-
+        
     def retrieve_google_trends(self, search, date_range):
         # Set up the trend fetching object
         pytrends = TrendReq(hl='en-US', tz=360)
@@ -239,7 +284,7 @@ class SModel():
             if not search:
             
                 print('\nChangepoints sorted by slope rate of change (2nd derivative):\n')
-                print(c_data.ix[:, ['Date', 'Adj. Close', 'delta']][:5])
+                print(c_data.ix[:, ['Date', 'adjclose', 'delta']][:5])
 
                 # Line plot showing actual values, estimated values, and changepoints
                 self.reset_plot()
@@ -306,7 +351,6 @@ class SModel():
         plt.show()
         self.changepoints = c_data
         return c_data
-
 
     def export_results(self, name="Prediction"):
         if not self.predictions:
@@ -380,7 +424,8 @@ class SModel():
         plt.title('Predictions for %s' % self.stock.ticker) 
         plt.show()
 
-    def evaluate_prediction(self, training_sets = None, test_months=5, start_date=None, end_date=None, nshares = None):
+
+    def evaluate_prediction_deprecated(self, training_set = None, test_months=5, start_date=None, end_date=None, nshares = None):
         # Default start date is one year before end of data
         # Default end date is end date of data
         if start_date is None:
@@ -389,115 +434,190 @@ class SModel():
         if end_date is None:
             end_date = self.stock.max_date
         
-        path = 'prediction evaluation {}.xlsx'.format(str(datetime.datetime.now()))
-        writer = pd.ExcelWriter(path = path)
-        export_data = pd.DataFrame()
-        for (key, column) in training_sets.items():
-             # Training data starts self.training_years years before start date and goes up to start date
-            train = column[(column['ds'] < start_date.date()) & 
-                            (column['ds'] > (start_date - pd.DateOffset(years=self.params.training_years)).date())]
-    
-            # Testing data is specified in the range
-            test = column[(column['ds'] >= start_date.date()) & (column['ds'] <= end_date.date())]
+         # Training data starts self.training_years years before start date and goes up to start date
+        train = column[(column['ds'] < start_date.date()) & 
+                        (column['ds'] > (start_date - pd.DateOffset(years=self.params.training_years)).date())]
 
-            model = self.build_model(evaluation=True)
-            model.fit(train)
+        # Testing data is specified in the range
+        test = column[(column['ds'] >= start_date.date()) & (column['ds'] <= end_date.date())]
 
-            # Make a future dataframe and predictions
-            future = model.make_future_dataframe(periods = 150, freq='D')
-            future = model.predict(future)
+        model = self.build_model(evaluation=True)
+        model.fit(train)
 
-            # Merge predictions with the known values
-            test = pd.merge(test, future, on = 'ds', how = 'inner')
+        # Make a future dataframe and predictions
+        future = model.make_future_dataframe(periods = 150, freq='D')
+        future = model.predict(future)
 
-            train = pd.merge(train, future, on = 'ds', how = 'inner')
+        # Merge predictions with the known values
+        test = pd.merge(test, future, on = 'ds', how = 'inner')
 
-            # Calculate the differences between consecutive measurements
-            test['pred_diff'] = test['yhat'].diff()
-            test['real_diff'] = test['y'].diff()
+        train = pd.merge(train, future, on = 'ds', how = 'inner')
+
+        # Calculate the differences between consecutive measurements
+        test['pred_diff'] = test['yhat'].diff()
+        test['real_diff'] = test['y'].diff()
+        
+        # Correct is when we predicted the correct direction
+        test['correct'] = (np.sign(test['pred_diff']) == np.sign(test['real_diff'])) * 1
+
+        # Correct is when we predicted the correct direction
+        test['correct'] = (np.sign(test['pred_diff']) == np.sign(test['real_diff'])) * 1
+        
+        # Accuracy when we predict increase and decrease
+        increase_accuracy = 100 * np.mean(test[test['pred_diff'] > 0]['correct'])
+        decrease_accuracy = 100 * np.mean(test[test['pred_diff'] < 0]['correct'])
+
+        # Calculate mean absolute error
+        test_errors = abs(test['y'] - test['yhat'])
+        test_mean_error = np.mean(test_errors)
+
+        train_errors = abs(train['y'] - train['yhat'])
+        train_mean_error = np.mean(train_errors)
+
+        # Calculate percentage of time actual value within prediction range
+        test['in_range'] = False
+
+        for i in test.index:
+            if (test.ix[i, 'y'] < test.ix[i, 'yhat_upper']) & (test.ix[i, 'y'] > test.ix[i, 'yhat_lower']):
+                test.ix[i, 'in_range'] = True
+
+        in_range_accuracy = 100 * np.mean(test['in_range'])
+        last_predicted_price = future.ix[len(future) - 1, 'yhat']*1000
+        last_actual_price = test.ix[len(test) - 1, 'y']*1000
+
+        export_data[key] = [train_mean_error, test_mean_error, last_actual_price, last_predicted_price]
+        if not nshares:
+            # Date range of predictions
+            print('\nPrediction Range: {} to {}.'.format(start_date.date(),
+                end_date.date()))
+
+            # Final prediction vs actual value
+            print('\nPredicted price on {} = {:.2f}VNĐ.'.format(max(future['ds']).date(), last_predicted_price))
+            print('Actual price on    {} = {:.2f}VNĐ.\n'.format(max(test['ds']).date(), last_actual_price))
+
+            print('Average Absolute Error on Training Data = {:.2f}VND.'.format(train_mean_error*1000))
+            print('Average Absolute Error on Testing  Data = {:.2f}VND.\n'.format(test_mean_error*1000))
+
+            # Direction accuracy
+            print('When the model predicted an increase, the price increased {:.2f}% of the time.'.format(increase_accuracy))
+            print('When the model predicted a  decrease, the price decreased  {:.2f}% of the time.\n'.format(decrease_accuracy))
+
+            print('The actual value was within the {:d}% confidence interval {:.2f}% of the time.'.format(int(100 * model.interval_width), in_range_accuracy))
+
+
+            # Reset the plot
+            self.reset_plot()
             
-            # Correct is when we predicted the correct direction
-            test['correct'] = (np.sign(test['pred_diff']) == np.sign(test['real_diff'])) * 1
+            # Set up the plot
+            fig, ax = plt.subplots(1, 1)
 
-            # Correct is when we predicted the correct direction
-            test['correct'] = (np.sign(test['pred_diff']) == np.sign(test['real_diff'])) * 1
+            # Plot the actual values
+            ax.plot(train['ds'], train['y'], 'ko-', linewidth = 1.4, alpha = 0.8, ms = 1.8, label = 'Observations')
+            ax.plot(test['ds'], test['y'], 'ko-', linewidth = 1.4, alpha = 0.8, ms = 1.8, label = 'Observations')
             
-            # Accuracy when we predict increase and decrease
-            increase_accuracy = 100 * np.mean(test[test['pred_diff'] > 0]['correct'])
-            decrease_accuracy = 100 * np.mean(test[test['pred_diff'] < 0]['correct'])
+            # Plot the predicted values
+            ax.plot(future['ds'], future['yhat'], 'navy', linewidth = 2.4, label = 'Predicted');
 
-            # Calculate mean absolute error
-            test_errors = abs(test['y'] - test['yhat'])
-            test_mean_error = np.mean(test_errors)
+            # Plot the uncertainty interval as ribbon
+            ax.fill_between(future['ds'].dt.to_pydatetime(), future['yhat_upper'], future['yhat_lower'], alpha = 0.6, 
+                        facecolor = 'gold', edgecolor = 'k', linewidth = 1.4, label = 'Confidence Interval')
 
-            train_errors = abs(train['y'] - train['yhat'])
-            train_mean_error = np.mean(train_errors)
+            # Put a vertical line at the start of predictions
+            plt.vlines(x=min(test['ds']).date(), ymin=min(future['yhat_lower']), ymax=max(future['yhat_upper']), colors = 'r',
+                    linestyles='dashed', label = 'Prediction Start')
 
-            # Calculate percentage of time actual value within prediction range
-            test['in_range'] = False
-
-            for i in test.index:
-                if (test.ix[i, 'y'] < test.ix[i, 'yhat_upper']) & (test.ix[i, 'y'] > test.ix[i, 'yhat_lower']):
-                    test.ix[i, 'in_range'] = True
-
-            in_range_accuracy = 100 * np.mean(test['in_range'])
-            last_predicted_price = future.ix[len(future) - 1, 'yhat']*1000
-            last_actual_price = test.ix[len(test) - 1, 'y']*1000
-
-            export_data[key] = [train_mean_error, test_mean_error, last_actual_price, last_predicted_price]
-            if not nshares:
-                # Date range of predictions
-                print('\nPrediction Range: {} to {}.'.format(start_date.date(),
-                    end_date.date()))
-
-                # Final prediction vs actual value
-                print('\nPredicted price on {} = {:.2f}VNĐ.'.format(max(future['ds']).date(), last_predicted_price))
-                print('Actual price on    {} = {:.2f}VNĐ.\n'.format(max(test['ds']).date(), last_actual_price))
-
-                print('Average Absolute Error on Training Data = {:.2f}VND.'.format(train_mean_error*1000))
-                print('Average Absolute Error on Testing  Data = {:.2f}VND.\n'.format(test_mean_error*1000))
-
-                # Direction accuracy
-                print('When the model predicted an increase, the price increased {:.2f}% of the time.'.format(increase_accuracy))
-                print('When the model predicted a  decrease, the price decreased  {:.2f}% of the time.\n'.format(decrease_accuracy))
-
-                print('The actual value was within the {:d}% confidence interval {:.2f}% of the time.'.format(int(100 * model.interval_width), in_range_accuracy))
-
-
-                # Reset the plot
-                self.reset_plot()
-                
-                # Set up the plot
-                fig, ax = plt.subplots(1, 1)
-
-                # Plot the actual values
-                ax.plot(train['ds'], train['y'], 'ko-', linewidth = 1.4, alpha = 0.8, ms = 1.8, label = 'Observations')
-                ax.plot(test['ds'], test['y'], 'ko-', linewidth = 1.4, alpha = 0.8, ms = 1.8, label = 'Observations')
-                
-                # Plot the predicted values
-                ax.plot(future['ds'], future['yhat'], 'navy', linewidth = 2.4, label = 'Predicted');
-
-                # Plot the uncertainty interval as ribbon
-                ax.fill_between(future['ds'].dt.to_pydatetime(), future['yhat_upper'], future['yhat_lower'], alpha = 0.6, 
-                            facecolor = 'gold', edgecolor = 'k', linewidth = 1.4, label = 'Confidence Interval')
-
-                # Put a vertical line at the start of predictions
-                plt.vlines(x=min(test['ds']).date(), ymin=min(future['yhat_lower']), ymax=max(future['yhat_upper']), colors = 'r',
-                        linestyles='dashed', label = 'Prediction Start')
-
-                # Plot formatting
-                plt.legend(loc = 2, prop={'size': 8}); plt.xlabel('Date'); plt.ylabel('Price Thousand VNĐ');
-                plt.grid(linewidth=0.6, alpha = 0.6)
-                        
-                plt.title('{} Model Evaluation from {} to {}.'.format(self.stock.ticker,
-                    start_date.date(), end_date.date()))
+            # Plot formatting
+            plt.legend(loc = 2, prop={'size': 8}); plt.xlabel('Date'); plt.ylabel('Price Thousand VNĐ');
+            plt.grid(linewidth=0.6, alpha = 0.6)
+                    
+            plt.title('{} Model Evaluation from {} to {}.'.format(self.stock.ticker,
+                start_date.date(), end_date.date()))
+        
+        export_data = export_data.rename(index={0: 'train mean error', 1: 'test mean error', 2: 'last actual price', 3: 'last predicted price'})
+        export_data.to_excel(writer, '%s evaluation' %key, header='evaluation')
+        writer.save()
+        print('%s exported' %path)
             
-            export_data = export_data.rename(index={0: 'train mean error', 1: 'test mean error', 2: 'last actual price', 3: 'last predicted price'})
-            export_data.to_excel(writer, '%s evaluation' %key, header='evaluation')
-            writer.save()
-            print('%s exported' %path)
         plt.show()
 
+    def evaluate_prediction(self, days, test, train, nshares=None):
+        result = self.predict(days=days)
+        # two dataset to compare
+        future = result.prediction[['ds','yhat','yhat_upper', 'yhat_lower']]
+        
+        ## evaluation section
+        test = pd.merge(test['data'][['ds','y']], future, on = 'ds', how = 'inner')
+        train = pd.merge(train['data'][['ds','y']], future, on = 'ds', how = 'inner')
+
+        print(test.head(), train.head())
+
+        # Calculate the differences between consecutive measurements
+        test['pred_diff'] = test['yhat'].diff()
+        test['real_diff'] = test['y'].diff()
+
+        # Correct is when we predicted the correct direction
+        test['correct'] = (np.sign(test['pred_diff']) == np.sign(test['real_diff'])) * 1
+
+        # Correct is when we predicted the correct direction
+        test['correct'] = (np.sign(test['pred_diff']) == np.sign(test['real_diff'])) * 1
+        
+        # Accuracy when we predict increase and decrease
+        increase_accuracy = 100 * np.mean(test[test['pred_diff'] > 0]['correct'])
+        decrease_accuracy = 100 * np.mean(test[test['pred_diff'] < 0]['correct'])
+
+        # Calculate mean absolute error
+        test_errors = abs(test['y'] - test['yhat'])
+        test_mean_error = np.mean(test_errors)
+
+        train_errors = abs(train['y'] - train['yhat'])
+        train_mean_error = np.mean(train_errors)
+
+        # Calculate percentage of time actual value within prediction range
+        test['in_range'] = False
+
+        for i in test.index:
+            if (test['y'].iloc[i] < test['yhat_upper'].iloc[i]) & (test['y'].iloc[i] > test['yhat_lower'].iloc[i]):
+                test['in_range'].iloc[i] = True
+
+        in_range_accuracy = 100 * np.mean(test['in_range'])
+        last_predicted_price = future['yhat'].iloc[len(future) - 1]*1000
+        last_actual_price = test['y'].iloc[-1]*1000
+
+        if not nshares:
+            # Date range of predictions
+            print('\nPrediction Range: {} to {}.'.format(self.start_date.date(),
+                self.end_date.date()))
+
+            # Final prediction vs actual value
+            print('\nPredicted price on {} = {:.2f}VNĐ.'.format(max(future['ds']).date(), last_predicted_price))
+            print('Actual price on    {} = {:.2f}VNĐ.\n'.format(max(test['ds']).date(), last_actual_price))
+
+            print('Average Absolute Error on Training Data = {:.2f}VND.'.format(train_mean_error*1000))
+            print('Average Absolute Error on Testing  Data = {:.2f}VND.\n'.format(test_mean_error*1000))
+
+            # Direction accuracy
+            print('When the model predicted an increase, the price increased {:.2f}% of the time.'.format(increase_accuracy))
+            print('When the model predicted a  decrease, the price decreased  {:.2f}% of the time.\n'.format(decrease_accuracy))
+
+            print('The actual value was within the {:d}% confidence interval {:.2f}% of the time.'.format(int(100 * result.interval_width), in_range_accuracy))
+
+        return {
+            'model_id': self.model_id,
+            'evaluation': {
+                'start_date': str(self.start_date.date()),
+                'end_date': str(self.end_date.date()),
+                'last_predicted_price': last_predicted_price,
+                'last_actual_price': last_actual_price,
+                'train_me': train_mean_error * 1000,
+                'test_me': test_mean_error * 1000,
+                'increase_acc': increase_accuracy,
+                'decrease_acc': decrease_accuracy,
+                'in_range_acc': in_range_accuracy
+            },
+            'test': test.to_dict('records'),
+            'train': train.to_dict('records')
+           
+        }
 
     # Reset the plotting parameters to clear style formatting
     # Not sure if this should be a static method

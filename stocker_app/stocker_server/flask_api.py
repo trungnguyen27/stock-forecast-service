@@ -2,9 +2,8 @@ from flask import Flask, jsonify, request
 from flask_restful import Resource
 import pickle, json
 from stocker_app.config import configs
-from stocker_app.stocker_logic.stock_model import SModel
 from stocker_app.stock_database.financial_data import FinancialData
-from stocker_app.stocker_server.tasks import predict, migrate_data
+from stocker_app.stocker_server.tasks import predict, migrate_data, build_model, evaluate_prediction
 from stocker_app.stock_database.migration.parse_csv import Migration
 from stocker_app.models import Prediction, PredictionParam
 from stocker_app.stock_database.DAO import DAO
@@ -20,16 +19,18 @@ class PriceData(Resource):
     def get(self, ticker):
         start_date = request.args.get('start-date')
         stock = FinancialData(ticker=ticker)
-        result = stock.get_data(start_date).tail(100)
+        result = stock.get_data(start_date= start_date)
         if result.empty == True:
             return []
         result = {
-            'ticker': stock.ticker,
-            'max_date': stock.max_date,
-            'min_date': stock.min_date,
-            'max_price': stock.max_price,
-            'min_price':stock.min_price,
-            'price': result[["ds", "Volume","Open","High","Low","Close"]].to_dict('records')
+            'info':{
+                'ticker': stock.ticker,
+                'max_date': stock.max_date,
+                'min_date': stock.min_date,
+                'max_price': stock.max_price,
+                'min_price':stock.min_price,
+            },
+            'price': result[["ds", "volume","open","high","low","close"]].to_dict('records')
         }
         return jsonify(result)
 
@@ -46,7 +47,7 @@ class MovingAverage(Resource):
         print(start_date, lags)
 
         stock = FinancialData(ticker=ticker)
-        results = stock.get_moving_averages(lags=lags, start_date=start_date)
+        results = stock.get_moving_average(lags=lags, start_date=start_date)
         json=dict()
         for (key, result) in results.items():
             json[key]=result.to_dict('records')
@@ -55,8 +56,11 @@ class MovingAverage(Resource):
 class PredictionAPI(Resource):
     def get(self):
         model_id = request.args.get('model-id', None)
+        days = request.args.get('days', 30)
         if model_id == None:
             return 'Invalid Model ID'
+
+        print('MODEL FUCKING ID', model_id)
 
         predictions = {}
         status = {}
@@ -71,8 +75,48 @@ class PredictionAPI(Resource):
             elif status['status'] == 2:
                 message = 'Model is being built, please try again'
             elif status['status'] == 1:
-                predictions = predict.delay(params=params.get_dict())
+                predictions = predict.delay(params=params.get_dict(),days= days )
                 result = predictions.wait()
+                return result
+
+            return {
+                'model_id': model_id,
+                'status_code':status,
+                'message': message 
+            }
+        except Exception as ex:
+            return {
+                'message': message,
+                'exception': ex.__dict__,
+                'modelid': model_id,
+                'params': params.get_dict(),
+                'status': status
+            }
+
+class PredictionEvaluation(Resource):
+    def get(self):
+        model_id = request.args.get('model-id', None)
+        evaluation_end = request.args.get('evaluation-end', None)
+        if model_id == None:
+            return 'Invalid Model ID'
+
+        print('MODEL FUCKING ID', model_id)
+
+        predictions = {}
+        status = {}
+        params_db = dao.get_prediction_model(model_id = model_id)
+        params = PredictionParam()
+        params.set_params(params=params_db)
+        try:
+            status = dao.get_model_status(model_id=model_id)
+            message = ''
+            if status['status'] == 0:
+                message = 'Please build the model first /model/build'
+            elif status['status'] == 2:
+                message = 'Model is being built, please try again'
+            elif status['status'] == 1:
+                evaluation = evaluate_prediction.delay(params=params.get_dict(),evaluation_end= evaluation_end )
+                result = evaluation.wait()
                 return result
 
             return {
@@ -91,28 +135,44 @@ class PredictionAPI(Resource):
 
 class ModelBuild(Resource):
     def post(self, ticker):
-        start_date = request.args.get('start-date', '2016-08-01')
-        lag = request.args.get('lag', 1)
-        prior = request.args.get('prior', 0.05)
-        seasonalities = request.args.get('seasonalities', 'm-q-y')
         status = {}
-
         try:
+            start_date = request.args.get('start-date', None)
+            label = request.args.get('label', 'close')
+            lag = request.args.get('lag', 1)
+            prior = request.args.get('prior', 0.05)
+            seasonalities = request.args.get('seasonalities', 'm-q-y')
+            training_years = request.args.get('training-years', 1.0)
+            status = {}
+
             lag =int(lag)
             prior = float(prior)
-            params = PredictionParam(seasonalities = seasonalities, changepoint_prior_scale=prior, ticker=ticker, lag = lag, date=start_date)
+            training_years = float(training_years)
+            params = PredictionParam(
+                seasonalities = seasonalities, 
+                changepoint_prior_scale=prior, 
+                ticker=ticker, 
+                lag = lag, 
+                date=start_date,
+                label=label,
+                training_years=training_years
+                )
+            
             model_id = params.get_hash()
+            print('MODEL PPARAMS', params.get_description())
            
             status = dao.get_model_status(model_id=model_id)
             resp_status = 'None'
             if status['status'] == 0:
                 dao.update_model_status(model_id = model_id, status=2)
-                predict.delay(params=params.get_dict())
+                build_model.delay(params=params.get_dict())
                 resp_status = 'started'
             elif status['status'] == 1:
                 resp_status= 'finished'
             elif status['status'] == 2:
                 resp_status = 'in progress'
+            elif status['status'] == -2:
+                resp_status = 'Parameter invalid, model was not built'
             return {
                 'status': resp_status,
                 'status_code': status
@@ -120,8 +180,11 @@ class ModelBuild(Resource):
         except Exception as ex:
             return {
                 'message': 'Bad Request',
-                'exception': ex
+                'exception': str(ex),
+                'status': status
             }
+
+
 
 
 class ModelStatus(Resource):

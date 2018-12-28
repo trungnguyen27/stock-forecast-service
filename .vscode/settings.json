@@ -1,4 +1,11 @@
 {
-    "python.pythonPath": "C:\\Users\\incom\\Anaconda3\\python.exe",
-    "python.linting.pylintEnabled": true
+    // "python.pythonPath": "C:\\Users\\incom\\Anaconda3\\python.exe",
+    // "python.linting.pylintEnabled": true
+    // "python.jediEnabled": false,
+    "terminal.integrated.shell.windows": "C:\\WINDOWS\\Sysnative\\bash.exe",
+    "python.condaPath": "C:\\Users\\incom\\Anaconda3",
+    "python.pythonPath": "C:\\Users\\incom\\Anaconda3\\envs",
+    "code-runner.terminalRoot": "/mnt/",
+    "code-runner.runInTerminal": true,
+    "code-runner.executorMap": { "python": "python3 -u", "python.pythonPath":"."}
 }

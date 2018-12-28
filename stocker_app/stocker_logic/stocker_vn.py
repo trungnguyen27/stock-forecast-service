@@ -46,12 +46,12 @@ class Stocker():
         # Columns required for prophet
         stock['ds'] = stock['Date']
 
-        if ('Adj. Close' not in stock.columns):
-            stock['Adj. Close'] = stock['Close']
-            stock['Adj. Open'] = stock['Open']
+        if ('adjclose' not in stock.columns):
+            stock['adjclose'] = stock['close']
+            stock['adjopen'] = stock['Open']
         
-        stock['y'] = stock['Adj. Close']
-        stock['Daily Change'] = stock['Adj. Close'] - stock['Adj. Open']
+        stock['y'] = stock['adjclose']
+        stock['Daily Change'] = stock['adjclose'] - stock['adjopen']
         
         # Data assigned as class attribute
         self.stock = stock.copy()
@@ -70,7 +70,7 @@ class Stocker():
         self.max_price_date = self.max_price_date[self.max_price_date.index[0]]
         
         # The starting price (starting with the opening price)
-        self.starting_price = float(self.stock.ix[0, 'Adj. Open'])
+        self.starting_price = float(self.stock.ix[0, 'adjopen'])
         
         # The most recent price
         self.most_recent_price = float(self.stock.ix[len(self.stock) - 1, 'y'])
@@ -222,7 +222,7 @@ class Stocker():
 
 
     # Basic Historical Plots and Basic Statistics
-    def plot_stock(self, start_date=None, end_date=None, stats=['Adj. Close'], plot_type='basic'):
+    def plot_stock(self, start_date=None, end_date=None, stats=['adjclose'], plot_type='basic'):
         
         self.reset_plot()
         
@@ -333,12 +333,12 @@ class Stocker():
         start_date, end_date = self.handle_dates(start_date, end_date)
             
         # Find starting and ending price of stock
-        start_price = float(self.stock[self.stock['Date'] == start_date]['Adj. Open'])
-        end_price = float(self.stock[self.stock['Date'] == end_date]['Adj. Close'])
+        start_price = float(self.stock[self.stock['Date'] == start_date]['adjopen'])
+        end_price = float(self.stock[self.stock['Date'] == end_date]['adjclose'])
         
         # Make a profit dataframe and calculate profit column
         profits = self.make_df(start_date, end_date)
-        profits['hold_profit'] = nshares * (profits['Adj. Close'] - start_price)
+        profits['hold_profit'] = nshares * (profits['adjclose'] - start_price)
         
         # Total profit
         total_hold_profit = nshares * (end_price - start_price)
@@ -747,7 +747,7 @@ class Stocker():
         if not search:
         
             print('\nChangepoints sorted by slope rate of change (2nd derivative):\n')
-            print(c_data.ix[:, ['Date', 'Adj. Close', 'delta']][:5])
+            print(c_data.ix[:, ['Date', 'adjclose', 'delta']][:5])
 
             # Line plot showing actual values, estimated values, and changepoints
             self.reset_plot()
