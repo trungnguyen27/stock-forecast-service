@@ -14,7 +14,7 @@ sklearn==0.0
 SQLAlchemy==1.2.13
 SQLAlchemy-Utils==0.33.6
 websocket-client==0.54.0
-Werkzeug==0.14.1
+Werkzeug==0.15.3
 wrapt==1.10.11
 celery==4.2.1
 pytrends==4.4.0
