@@ -64,7 +64,7 @@ python-dateutil==2.7.5
 python-editor==1.0.3
 pytrends==4.4.0
 pytz==2018.7
-PyYAML==3.13
+PyYAML==5.4
 Quandl==3.4.4
 redis==2.10.6
 requests==2.18.4
